@@ -1,0 +1,18 @@
+/*
+ * @repo/tailwind-config — Base CSS para Tailwind v3
+ *
+ * Cada app importa este arquivo via postcss.config.mjs.
+ * Tokens de design específicos do projeto são adicionados aqui ao instanciar.
+ *
+ * Uso no app:
+ *   import "@repo/tailwind-config/globals.css" no app/layout.tsx
+ */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Tokens de design compartilhados — preencher ao instanciar o projeto.
+ * Manter vazio no base-template para não contaminar projetos futuros.
+ */
