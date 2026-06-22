@@ -7,6 +7,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createServerClient, createAdminClient, ok, err } from "@repo/supabase";
 import type { Result } from "@repo/supabase";
+import { rateLimit } from "../lib/rate-limit";
 
 interface SignUpData {
   email: string;
@@ -37,6 +38,11 @@ interface AuthUser {
 export async function signUpBusinessOwner(
   data: SignUpData,
 ): Promise<Result<{ userId: string }>> {
+  const limit = rateLimit(`signup:${data.email}`, 3, 60_000);
+  if (!limit.allowed) {
+    return err("Muitas tentativas. Tente novamente em alguns minutos.", "rate-limit/exceeded");
+  }
+
   const admin = createAdminClient();
 
   // 1. Cria auth.user
@@ -128,6 +134,11 @@ export async function signUpBusinessOwner(
  * Login com email e senha.
  */
 export async function signIn(data: SignInData): Promise<Result<void>> {
+  const limit = rateLimit(`login:${data.email}`, 5, 60_000);
+  if (!limit.allowed) {
+    return err("Muitas tentativas. Tente novamente em alguns minutos.", "rate-limit/exceeded");
+  }
+
   const supabase = await createServerClient();
 
   const { error } = await supabase.auth.signInWithPassword({
