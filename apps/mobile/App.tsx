@@ -1,30 +1,28 @@
 import { StatusBar } from "expo-status-bar";
-import { StyleSheet, Text, View } from "react-native";
+import { useAuth } from "./src/hooks/useAuth";
+import LoginScreen from "./src/screens/LoginScreen";
+import DashboardScreen from "./src/screens/DashboardScreen";
 
 export default function App() {
+  const { user, loading, signIn, signOut } = useAuth();
+
+  if (loading) {
+    return null; // Splash screen em produção
+  }
+
+  if (!user) {
+    return (
+      <>
+        <LoginScreen onLogin={signIn} />
+        <StatusBar style="auto" />
+      </>
+    );
+  }
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>GoDelivery Courier</Text>
-      <Text style={styles.subtitle}>App dos motoboys</Text>
+    <>
+      <DashboardScreen user={user} onSignOut={signOut} />
       <StatusBar style="auto" />
-    </View>
+    </>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#fff",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: "#666",
-  },
-});
