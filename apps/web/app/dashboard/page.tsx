@@ -66,13 +66,18 @@ export default async function DashboardPage() {
             </p>
           </Link>
 
-          <div className="rounded-xl bg-white p-6 shadow">
-            <h3 className="font-semibold text-gray-900">Motoboys</h3>
-            <p className="mt-2 text-3xl font-bold text-green-600">Em breve</p>
-            <p className="mt-1 text-sm text-gray-500">
-              Cadastro e gestão de couriers
+          <Link
+            href="/dashboard/billing"
+            className="rounded-xl bg-white p-6 shadow transition hover:shadow-lg"
+          >
+            <h3 className="font-semibold text-gray-900">Pagamentos</h3>
+            <p className="mt-2 text-3xl font-bold text-green-600">
+              Pay-as-you-go
             </p>
-          </div>
+            <p className="mt-1 text-sm text-gray-500">
+              Cadastre cartão e acompanhe cobranças
+            </p>
+          </Link>
         </div>
       </main>
     </div>
