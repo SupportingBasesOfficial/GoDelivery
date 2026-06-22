@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentUser, signOut } from "../actions/auth";
 
@@ -41,27 +42,35 @@ export default async function DashboardPage() {
         </div>
 
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          <div className="rounded-xl bg-white p-6 shadow">
-            <h3 className="font-semibold text-gray-900">Entregas hoje</h3>
-            <p className="mt-2 text-3xl font-bold text-blue-600">0</p>
+          <Link
+            href="/dashboard/orders"
+            className="rounded-xl bg-white p-6 shadow transition hover:shadow-lg"
+          >
+            <h3 className="font-semibold text-gray-900">Pedidos</h3>
+            <p className="mt-2 text-3xl font-bold text-blue-600">Gerenciar</p>
             <p className="mt-1 text-sm text-gray-500">
-              Em breve: integração com pedidos
+              Crie e acompanhe entregas
             </p>
-          </div>
+          </Link>
+
+          <Link
+            href="/dashboard/settings"
+            className="rounded-xl bg-white p-6 shadow transition hover:shadow-lg"
+          >
+            <h3 className="font-semibold text-gray-900">Taxas de entrega</h3>
+            <p className="mt-2 text-3xl font-bold text-purple-600">
+              Configurar
+            </p>
+            <p className="mt-1 text-sm text-gray-500">
+              Defina faixas de distância
+            </p>
+          </Link>
 
           <div className="rounded-xl bg-white p-6 shadow">
-            <h3 className="font-semibold text-gray-900">Motoboys ativos</h3>
-            <p className="mt-2 text-3xl font-bold text-green-600">0</p>
+            <h3 className="font-semibold text-gray-900">Motoboys</h3>
+            <p className="mt-2 text-3xl font-bold text-green-600">Em breve</p>
             <p className="mt-1 text-sm text-gray-500">
-              Em breve: gestão de couriers
-            </p>
-          </div>
-
-          <div className="rounded-xl bg-white p-6 shadow">
-            <h3 className="font-semibold text-gray-900">Taxa de entrega</h3>
-            <p className="mt-2 text-3xl font-bold text-purple-600">R$ 0,00</p>
-            <p className="mt-1 text-sm text-gray-500">
-              Em breve: configuração de faixas
+              Cadastro e gestão de couriers
             </p>
           </div>
         </div>
