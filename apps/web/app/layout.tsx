@@ -1,9 +1,8 @@
 import "@repo/tailwind-config/globals.css";
 
 export const metadata = {
-  title: "Base Template",
-  description:
-    "Base Template Universal - Monorepo Turborepo + Next.js + Supabase",
+  title: "GoDelivery — Painel do Empresário",
+  description: "Plataforma multi-tenant de gestão de motoboys e entregas",
 };
 
 export default function RootLayout({
@@ -13,7 +12,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="pt-BR">
-      <body>{children}</body>
+      <body className="min-h-screen bg-gray-50 text-gray-900">{children}</body>
     </html>
   );
 }
