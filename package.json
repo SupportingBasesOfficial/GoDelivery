@@ -1,13 +1,13 @@
 {
-  "name": "@supporting-bases/base-template",
+  "name": "@supporting-bases/godelivery",
   "version": "1.0.0",
-  "description": "The definitive MEGA-TECH monorepo template. Engineered for absolute scale and resilience using Turborepo, Next.js 15, Tailwind v3, and Supabase.",
-  "author": "SupportingBasesOficial",
+  "description": "GoDelivery — Plataforma multi-tenant de gestão de motoboys e entregas. Web para empresários, app nativo para motoboys, pay-as-you-go via Stripe.",
+  "author": "SupportingBasesOfficial",
   "license": "MIT",
   "private": true,
   "repository": {
     "type": "git",
-    "url": "https://github.com"
+    "url": "https://github.com/SupportingBasesOfficial/GoDelivery"
   },
   "scripts": {
     "build": "turbo run build",

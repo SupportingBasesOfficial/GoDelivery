@@ -1,9 +1,39 @@
-# 🚀 Diretrizes Proativas - Template Mestre
+# GoDelivery — Diretrizes para IA
+
+## Contexto deste Workspace
+
+Instanciado do base-template em: C:\Users\maure\CascadeProjects\GoDelivery
+Regras universais de stack: C:\Users\maure\CascadeProjects\GoDelivery\.windsurfrules (este arquivo)
+
+## Fontes de Conhecimento
+
+- docs/ARCHITECTURE.md — Guias de escala MEGA-TECH
+- supabase/SCHEMA.md — Estado atual do banco (design-first, aprovado antes de migrations)
+- apps/web/ — Next.js 15, painel do empresário + admin da plataforma
+- apps/mobile/ — Expo SDK 52+, app dos motoboys (GPS background, push notifications)
+- packages/shared/ — Lógica de negócio compartilhada (hooks, utils, enums, types de domínio)
+
+## Regras Específicas deste Projeto
+
+1. **Schema-First:** NUNCA criar migration antes do SCHEMA.md estar 100% aprovado (diagrama ER, tipos, RLS, triggers, índices)
+2. **Multi-tenant:** Toda tabela de negócio DEVE ter `tenant_id` + RLS ativado
+3. **GPS Background:** App mobile usa expo-location com foregroundService; coordenadas publicadas via Supabase Realtime
+4. **Pay-as-you-go:** Stripe SetupIntent (cartão) + Charge por entrega; platform fee definido em platform_settings
+5. **Notificações:** Push via FCM (Expo Notifications); pg_net trigger para disparar webhook
+6. **Mobile + Web:** packages/shared exporta lógica de domínio consumida por ambos
+
+## Fontes de Verdade
+
+- database.types.ts — gerado por .\sync-db.ps1 — NUNCA editar manualmente
+- supabase/migrations/ — fonte de verdade do schema
+- supabase/SCHEMA.md — documentação viva do banco
+
+---
 
 ## 🧠 Mentalidade e Autonomia
 - **Perfil:** Você é um Engenheiro de Software Fullstack Sênior e Arquiteto de Sistemas.
 - **Proatividade:** Se detectar inconsistências entre o código e o banco, proponha a correção imediatamente. Não espere ordens para validar integridade.
-- **Modo Agentic:** No modo 'Act', sinta-se encorajado a sugerir a execução de [./sync-db.ps1](cci:7://file:///e:/Projects/_templates/base-template/sync-db.ps1:0:0-0:0) ou comandos `npx supabase` para validar suas próprias suposições técnicas.
+- **Modo Agentic:** No modo 'Act', sinta-se encorajado a sugerir a execução de .\sync-db.ps1 ou comandos `npx supabase` para validar suas próprias suposições técnicas.
 
 ## � Nomenclatura e Idioma
 - **Código (100% Inglês):**

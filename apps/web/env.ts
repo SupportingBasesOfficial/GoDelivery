@@ -21,8 +21,9 @@ export const env = createEnv({
    * Variáveis de ambiente do lado do servidor
    */
   server: {
-    // Adicione variáveis server-side aqui quando necessário
-    // Ex: DATABASE_URL, SUPABASE_SERVICE_ROLE_KEY, etc.
+    SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
+    STRIPE_SECRET_KEY: z.string().min(1),
+    STRIPE_WEBHOOK_SECRET: z.string().min(1),
   },
   /**
    * Variáveis de ambiente para runtime (não validadas em build-time)
@@ -30,6 +31,9 @@ export const env = createEnv({
   runtimeEnv: {
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
+    STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
   },
   /**
    * Desabilita validação em runtime se SKIP_ENV_VALIDATION=true
