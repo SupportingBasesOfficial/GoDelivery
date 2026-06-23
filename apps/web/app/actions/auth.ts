@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-// @ts-nocheck — Tipos do Supabase em modo manual; serão corrigidos após sync-db.ps1
-/* eslint-enable @typescript-eslint/ban-ts-comment */
+// @ts-nocheck — Tipos gerados do banco real (v2). TODO: ajustar código para novos tipos supabase-js
 "use server";
 
 import { revalidatePath } from "next/cache";
