@@ -23,13 +23,19 @@ export type OrderStatus =
   | "delivered"
   | "rejected";
 export type CourierStatus = "offline" | "available" | "busy";
-export type PaymentStatus = "pending" | "paid" | "failed";
+export type PaymentStatus = "pending" | "paid" | "failed" | "refunded";
+
+export type Plan = "free" | "basic" | "pro" | "enterprise";
+
+export type SubscriptionStatus = "trialing" | "active" | "past_due" | "canceled" | "unpaid";
 
 export interface PlatformSettingsRow {
   id: string;
   min_tax_fee: number;
   platform_percentage: number;
   is_active: boolean;
+  maintenance_mode: boolean;
+  support_email: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -44,8 +50,13 @@ export interface TenantRow {
   address: string | null;
   latitude: number | null;
   longitude: number | null;
+  logo_url: string | null;
+  primary_color: string | null;
   stripe_customer_id: string | null;
+  plan: Plan;
+  subscription_status: SubscriptionStatus;
   is_active: boolean;
+  deleted_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -62,9 +73,13 @@ export interface ProfileRow {
   id: string;
   tenant_id: string | null;
   role: UserRole;
-  full_name: string | null;
+  full_name: string;
   phone: string | null;
+  avatar_url: string | null;
+  email_verified_at: string | null;
+  last_sign_in_at: string | null;
   is_active: boolean;
+  deleted_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -76,6 +91,12 @@ export interface CourierRow {
   vehicle_plate: string | null;
   license_number: string | null;
   status: CourierStatus;
+  current_location_lat: number | null;
+  current_location_lng: number | null;
+  last_location_at: string | null;
+  rating: number | null;
+  total_deliveries: number;
+  total_earnings: number;
   fcm_token: string | null;
   created_at: string;
   updated_at: string;
@@ -98,6 +119,8 @@ export interface OrderRow {
   delivery_fee: number;
   platform_fee: number;
   rejection_reason: string | null;
+  delivered_at: string | null;
+  deleted_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -107,6 +130,7 @@ export interface OrderStatusHistoryRow {
   order_id: string;
   status: OrderStatus;
   notes: string | null;
+  created_by: string | null;
   created_at: string;
 }
 
@@ -124,8 +148,11 @@ export interface PaymentRow {
   tenant_id: string;
   order_id: string;
   stripe_payment_intent_id: string | null;
+  stripe_invoice_id: string | null;
   amount: number;
   status: PaymentStatus;
+  receipt_url: string | null;
+  paid_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -138,6 +165,7 @@ export interface NotificationRow {
   body: string;
   data: Json | null;
   is_read: boolean;
+  expires_at: string | null;
   created_at: string;
 }
 
@@ -146,6 +174,8 @@ export interface PlatformSettingsInsert {
   min_tax_fee?: number;
   platform_percentage?: number;
   is_active?: boolean;
+  maintenance_mode?: boolean;
+  support_email?: string | null;
   created_at?: string;
   updated_at?: string;
 }
@@ -160,8 +190,13 @@ export interface TenantInsert {
   address?: string | null;
   latitude?: number | null;
   longitude?: number | null;
+  logo_url?: string | null;
+  primary_color?: string | null;
   stripe_customer_id?: string | null;
+  plan?: Plan;
+  subscription_status?: SubscriptionStatus;
   is_active?: boolean;
+  deleted_at?: string | null;
   created_at?: string;
   updated_at?: string;
 }
@@ -178,9 +213,13 @@ export interface ProfileInsert {
   id: string;
   tenant_id?: string | null;
   role?: UserRole;
-  full_name?: string | null;
+  full_name?: string;
   phone?: string | null;
+  avatar_url?: string | null;
+  email_verified_at?: string | null;
+  last_sign_in_at?: string | null;
   is_active?: boolean;
+  deleted_at?: string | null;
   created_at?: string;
   updated_at?: string;
 }
@@ -192,6 +231,12 @@ export interface CourierInsert {
   vehicle_plate?: string | null;
   license_number?: string | null;
   status?: CourierStatus;
+  current_location_lat?: number | null;
+  current_location_lng?: number | null;
+  last_location_at?: string | null;
+  rating?: number | null;
+  total_deliveries?: number;
+  total_earnings?: number;
   fcm_token?: string | null;
   created_at?: string;
   updated_at?: string;
@@ -201,6 +246,7 @@ export interface OrderInsert {
   id?: string;
   tenant_id: string;
   courier_id?: string | null;
+  created_by: string;
   status?: OrderStatus;
   customer_name: string;
   customer_phone: string;
@@ -210,10 +256,14 @@ export interface OrderInsert {
   delivery_address: string;
   delivery_lat?: number | null;
   delivery_lng?: number | null;
+  distance_km?: number;
+  estimated_minutes?: number | null;
   order_value?: number;
   delivery_fee?: number;
   platform_fee?: number;
   rejection_reason?: string | null;
+  delivered_at?: string | null;
+  deleted_at?: string | null;
   created_at?: string;
   updated_at?: string;
 }
@@ -223,6 +273,7 @@ export interface OrderStatusHistoryInsert {
   order_id: string;
   status: OrderStatus;
   notes?: string | null;
+  created_by?: string | null;
   created_at?: string;
 }
 
@@ -240,8 +291,11 @@ export interface PaymentInsert {
   tenant_id: string;
   order_id: string;
   stripe_payment_intent_id?: string | null;
+  stripe_invoice_id?: string | null;
   amount: number;
   status?: PaymentStatus;
+  receipt_url?: string | null;
+  paid_at?: string | null;
   created_at?: string;
   updated_at?: string;
 }
@@ -254,6 +308,7 @@ export interface NotificationInsert {
   body: string;
   data?: Json | null;
   is_read?: boolean;
+  expires_at?: string | null;
   created_at?: string;
 }
 
@@ -328,6 +383,8 @@ export interface Database {
       order_status: OrderStatus;
       courier_status: CourierStatus;
       payment_status: PaymentStatus;
+      plan: Plan;
+      subscription_status: SubscriptionStatus;
     };
   };
 }

@@ -1,4 +1,4 @@
--- Migration: Seed data + Row Level Security Policies
+-- Migration: Seed data + Row Level Security Policies (v2)
 -- Ordem: última (depende de todas as tabelas anteriores)
 
 -- ============================================================
@@ -30,48 +30,92 @@ USING (EXISTS (
     SELECT 1 FROM profiles WHERE profiles.id = auth.uid() AND profiles.role = 'admin'
 ));
 
+CREATE POLICY "Admin update platform settings"
+ON platform_settings FOR UPDATE
+USING (EXISTS (
+    SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'
+))
+WITH CHECK (EXISTS (
+    SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'
+));
+
 -- ============================================================
 -- RLS: tenants
 -- ============================================================
-CREATE POLICY "Admin read all tenants"
-ON tenants FOR SELECT
+CREATE POLICY "Admin full access tenants"
+ON tenants FOR ALL
 USING (EXISTS (
-    SELECT 1 FROM profiles WHERE profiles.id = auth.uid() AND profiles.role = 'admin'
+    SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'
 ));
 
 CREATE POLICY "Business owner read own tenant"
 ON tenants FOR SELECT
-USING (EXISTS (
-    SELECT 1 FROM profiles WHERE profiles.id = auth.uid() AND profiles.tenant_id = tenants.id
-));
+USING (
+    deleted_at IS NULL
+    AND EXISTS (
+        SELECT 1 FROM profiles WHERE id = auth.uid() AND tenant_id = tenants.id
+    )
+);
+
+CREATE POLICY "Business owner update own tenant"
+ON tenants FOR UPDATE
+USING (
+    deleted_at IS NULL
+    AND EXISTS (
+        SELECT 1 FROM profiles WHERE id = auth.uid() AND tenant_id = tenants.id
+    )
+)
+WITH CHECK (
+    deleted_at IS NULL
+    AND EXISTS (
+        SELECT 1 FROM profiles WHERE id = auth.uid() AND tenant_id = tenants.id
+    )
+);
 
 -- ============================================================
 -- RLS: tenant_settings
 -- ============================================================
-CREATE POLICY "Tenant isolation on settings"
+CREATE POLICY "Business owner full access tenant_settings"
 ON tenant_settings FOR ALL
-USING (tenant_id = (SELECT tenant_id FROM profiles WHERE id = auth.uid()));
-
--- ============================================================
--- RLS: profiles
--- ============================================================
-CREATE POLICY "Admin read all profiles"
-ON profiles FOR SELECT
-USING (EXISTS (
-    SELECT 1 FROM profiles self WHERE self.id = auth.uid() AND self.role = 'admin'
-));
-
-CREATE POLICY "Business owner read tenant profiles"
-ON profiles FOR SELECT
 USING (
     tenant_id = (SELECT tenant_id FROM profiles WHERE id = auth.uid())
 );
 
+CREATE POLICY "Admin read all tenant_settings"
+ON tenant_settings FOR SELECT
+USING (EXISTS (
+    SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'
+));
+
+-- ============================================================
+-- RLS: profiles
+-- ============================================================
+CREATE POLICY "Admin full access profiles"
+ON profiles FOR ALL
+USING (
+    deleted_at IS NULL
+    AND EXISTS (SELECT 1 FROM profiles self WHERE self.id = auth.uid() AND self.role = 'admin')
+);
+
+CREATE POLICY "Business owner read tenant profiles"
+ON profiles FOR SELECT
+USING (
+    deleted_at IS NULL
+    AND tenant_id = (SELECT tenant_id FROM profiles WHERE id = auth.uid())
+);
+
+CREATE POLICY "Business owner insert courier profile"
+ON profiles FOR INSERT
+WITH CHECK (
+    role = 'courier'
+    AND tenant_id = (SELECT tenant_id FROM profiles WHERE id = auth.uid())
+);
+
 CREATE POLICY "Courier read own profile"
 ON profiles FOR SELECT
-USING (id = auth.uid());
+USING (id = auth.uid() AND deleted_at IS NULL);
 
-CREATE POLICY "Users update own profile"
+CREATE POLICY "Courier update own profile"
 ON profiles FOR UPDATE
 USING (id = auth.uid())
 WITH CHECK (id = auth.uid());
@@ -79,8 +123,8 @@ WITH CHECK (id = auth.uid());
 -- ============================================================
 -- RLS: couriers
 -- ============================================================
-CREATE POLICY "Business owner read tenant couriers"
-ON couriers FOR SELECT
+CREATE POLICY "Business owner full access couriers"
+ON couriers FOR ALL
 USING (tenant_id = (SELECT tenant_id FROM profiles WHERE id = auth.uid()));
 
 CREATE POLICY "Courier read own record"
@@ -95,21 +139,16 @@ WITH CHECK (id = auth.uid());
 -- ============================================================
 -- RLS: orders
 -- ============================================================
-CREATE POLICY "Business owner read tenant orders"
-ON orders FOR SELECT
-USING (tenant_id = (SELECT tenant_id FROM profiles WHERE id = auth.uid()));
-
-CREATE POLICY "Business owner insert tenant orders"
-ON orders FOR INSERT
-WITH CHECK (tenant_id = (SELECT tenant_id FROM profiles WHERE id = auth.uid()));
-
-CREATE POLICY "Business owner update tenant orders"
-ON orders FOR UPDATE
-USING (tenant_id = (SELECT tenant_id FROM profiles WHERE id = auth.uid()));
+CREATE POLICY "Business owner full access orders"
+ON orders FOR ALL
+USING (
+    deleted_at IS NULL
+    AND tenant_id = (SELECT tenant_id FROM profiles WHERE id = auth.uid())
+);
 
 CREATE POLICY "Courier read assigned orders"
 ON orders FOR SELECT
-USING (courier_id = auth.uid());
+USING (courier_id = auth.uid() AND deleted_at IS NULL);
 
 CREATE POLICY "Courier update assigned orders"
 ON orders FOR UPDATE
@@ -125,6 +164,7 @@ USING (EXISTS (
     SELECT 1 FROM orders o
     WHERE o.id = order_status_history.order_id
     AND o.tenant_id = (SELECT tenant_id FROM profiles WHERE id = auth.uid())
+    AND o.deleted_at IS NULL
 ));
 
 CREATE POLICY "Courier read assigned history"
@@ -133,6 +173,13 @@ USING (EXISTS (
     SELECT 1 FROM orders o
     WHERE o.id = order_status_history.order_id
     AND o.courier_id = auth.uid()
+    AND o.deleted_at IS NULL
+));
+
+CREATE POLICY "Admin read all history"
+ON order_status_history FOR SELECT
+USING (EXISTS (
+    SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'
 ));
 
 -- ============================================================
@@ -170,6 +217,6 @@ USING (tenant_id = (SELECT tenant_id FROM profiles WHERE id = auth.uid()));
 -- ============================================================
 -- RLS: notifications
 -- ============================================================
-CREATE POLICY "Users read own notifications"
+CREATE POLICY "Users full access own notifications"
 ON notifications FOR ALL
 USING (recipient_id = auth.uid());

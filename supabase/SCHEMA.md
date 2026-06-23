@@ -1,235 +1,86 @@
-# 🗺️ SCHEMA.md — GoDelivery
+# 🗺️ SCHEMA.md v2 — GoDelivery
 
-> **Fonte de Verdade:** Design-first. Nenhuma migration é criada antes deste documento estar 100% aprovado.
-> **Status:** 🟡 Em design — aguardando aprovação final antes de migrations.
-
----
-
-## 📊 Status do Banco de Dados
-
-| Campo                  | Valor                          |
-| ---------------------- | ------------------------------ |
-| **Estado Atual**       | 🟡 Em design                   |
-| **Projeto**            | GoDelivery                     |
-| **Última Atualização** | 2026-06-22                     |
-| **Migration Base**     | `20260509000001_initial_setup` |
-
----
-
-## 🧩 Diagrama de Relacionamentos
-
-```mermaid
-erDiagram
-    AUTH_USERS {
-        uuid id PK "Supabase Auth"
-        string email
-        timestamptz created_at
-    }
-
-    PLATFORM_SETTINGS {
-        uuid id PK
-        decimal min_tax_fee
-        decimal platform_percentage
-        boolean is_active
-        timestamptz created_at
-        timestamptz updated_at
-    }
-
-    TENANTS {
-        uuid id PK
-        string name
-        string slug UK
-        string document
-        string email
-        string phone
-        string address
-        decimal latitude
-        decimal longitude
-        string stripe_customer_id
-        boolean is_active
-        timestamptz created_at
-        timestamptz updated_at
-    }
-
-    TENANT_SETTINGS {
-        uuid id PK
-        uuid tenant_id FK
-        jsonb fee_ranges
-        timestamptz created_at
-        timestamptz updated_at
-    }
-
-    PROFILES {
-        uuid id PK "FK auth.users"
-        uuid tenant_id FK "nullable"
-        string role
-        string full_name
-        string phone
-        boolean is_active
-        timestamptz created_at
-        timestamptz updated_at
-    }
-
-    COURIERS {
-        uuid id PK "FK profiles.id"
-        uuid tenant_id FK
-        string vehicle_type
-        string vehicle_plate
-        string license_number
-        string status
-        string fcm_token
-        timestamptz created_at
-        timestamptz updated_at
-    }
-
-    ORDERS {
-        uuid id PK
-        uuid tenant_id FK
-        uuid courier_id FK "nullable"
-        string status
-        string customer_name
-        string customer_phone
-        string pickup_address
-        decimal pickup_lat
-        decimal pickup_lng
-        string delivery_address
-        decimal delivery_lat
-        decimal delivery_lng
-        decimal order_value
-        decimal delivery_fee
-        decimal platform_fee
-        string rejection_reason "nullable"
-        timestamptz created_at
-        timestamptz updated_at
-    }
-
-    ORDER_STATUS_HISTORY {
-        uuid id PK
-        uuid order_id FK
-        string status
-        string notes "nullable"
-        timestamptz created_at
-    }
-
-    COURIER_LOCATIONS {
-        uuid id PK
-        uuid courier_id FK
-        decimal latitude
-        decimal longitude
-        decimal accuracy "nullable"
-        timestamptz recorded_at
-    }
-
-    PAYMENTS {
-        uuid id PK
-        uuid tenant_id FK
-        uuid order_id FK
-        string stripe_payment_intent_id
-        decimal amount
-        string status
-        timestamptz created_at
-        timestamptz updated_at
-    }
-
-    NOTIFICATIONS {
-        uuid id PK
-        uuid recipient_id FK "profiles.id"
-        string type
-        string title
-        string body
-        jsonb data "nullable"
-        boolean is_read
-        timestamptz created_at
-    }
-
-    PLATFORM_SETTINGS ||--o{ TENANTS : "configura"
-    TENANTS ||--o{ TENANT_SETTINGS : "possui"
-    TENANTS ||--o{ PROFILES : "possui"
-    TENANTS ||--o{ COURIERS : "emprega"
-    TENANTS ||--o{ ORDERS : "recebe"
-    TENANTS ||--o{ PAYMENTS : "paga"
-    AUTH_USERS ||--|| PROFILES : "estende"
-    PROFILES ||--|| COURIERS : "estende"
-    COURIERS ||--o{ ORDERS : "entrega"
-    COURIERS ||--o{ COURIER_LOCATIONS : "rastreia"
-    ORDERS ||--o{ ORDER_STATUS_HISTORY : "histórico"
-    ORDERS ||--|| PAYMENTS : "gera"
-    PROFILES ||--o{ NOTIFICATIONS : "recebe"
-```
-
----
-
-## 🛠️ Extensões Instaladas
-
-| Extensão      | Schema       | Descrição                                         |
-| ------------- | ------------ | ------------------------------------------------- |
-| **uuid-ossp** | `extensions` | UUIDs v4 para PKs                                 |
-| **pg_net**    | `extensions` | HTTP assíncrono (webhooks, notificações)          |
-| **postgis**   | `extensions` | Geoespacial (opcional, para queries de distância) |
+> **Fonte de Verdade absoluta.** Nenhuma migration é criada antes deste documento estar 100% aprovado.
+> **Status:** 🟡 Em revisão final — todas as colunas, policies, índices e triggers revisados.
 
 ---
 
 ## 📋 Enums
 
 ### `user_role`
-
 ```sql
 CREATE TYPE user_role AS ENUM ('admin', 'business_owner', 'courier');
 ```
 
 ### `order_status`
-
 ```sql
 CREATE TYPE order_status AS ENUM (
-  'draft',           -- Taxa calculada, ainda não enviada
-  'pending_courier', -- Enviada ao motoboy, aguardando aceite
+  'draft',           -- Taxa calculada, ainda não enviada ao motoboy
+  'pending_courier', -- Enviada, aguardando aceite
   'accepted',        -- Motoboy aceitou
   'collected',       -- Empresário confirmou coleta
   'in_transit',      -- Em rota de entrega
-  'delivered',       -- Entregue
-  'rejected'         -- Motoboy recusou
+  'delivered',       -- Entregue ao cliente
+  'rejected'         -- Motoboy recusou (com reason)
 );
 ```
 
 ### `courier_status`
-
 ```sql
 CREATE TYPE courier_status AS ENUM ('offline', 'available', 'busy');
 ```
 
 ### `payment_status`
-
 ```sql
-CREATE TYPE payment_status AS ENUM ('pending', 'paid', 'failed');
+CREATE TYPE payment_status AS ENUM ('pending', 'paid', 'failed', 'refunded');
+```
+
+### `plan`
+```sql
+CREATE TYPE plan AS ENUM ('free', 'basic', 'pro', 'enterprise');
+```
+
+### `subscription_status`
+```sql
+CREATE TYPE subscription_status AS ENUM ('trialing', 'active', 'past_due', 'canceled', 'unpaid');
 ```
 
 ---
 
-## 📋 Tabelas
+## 📋 Tabelas (revisadas)
 
 ### `platform_settings`
 
-Configurações globais da plataforma (definidas pelo admin).
+Configurações globais da plataforma (apenas 1 row, admin gerencia).
 
-| Coluna                | Tipo          | Constraints                    | Descrição                         |
-| --------------------- | ------------- | ------------------------------ | --------------------------------- |
-| `id`                  | UUID          | PK, DEFAULT uuid_generate_v4() | Identificador                     |
-| `min_tax_fee`         | DECIMAL(10,2) | NOT NULL, DEFAULT 5.00         | Taxa mínima de entrega (R$)       |
-| `platform_percentage` | DECIMAL(5,2)  | NOT NULL, DEFAULT 20.00        | % da taxa cobrada pela plataforma |
-| `is_active`           | BOOLEAN       | NOT NULL, DEFAULT true         | Config ativa                      |
-| `created_at`          | TIMESTAMPTZ   | NOT NULL, DEFAULT now()        |                                   |
-| `updated_at`          | TIMESTAMPTZ   | NOT NULL, DEFAULT now()        |                                   |
+| Coluna                | Tipo          | Constraints                    | Descrição                             |
+| --------------------- | ------------- | ------------------------------ | ------------------------------------- |
+| `id`                  | UUID          | PK, DEFAULT uuid_generate_v4() |                                       |
+| `min_tax_fee`         | DECIMAL(10,2) | NOT NULL, DEFAULT 5.00         | Taxa mínima de entrega (R$)           |
+| `platform_percentage` | DECIMAL(5,2)  | NOT NULL, DEFAULT 20.00      | % da taxa cobrada pela plataforma     |
+| `is_active`           | BOOLEAN       | NOT NULL, DEFAULT true         | Plataforma aceitando novos pedidos    |
+| `maintenance_mode`    | BOOLEAN       | NOT NULL, DEFAULT false        | Modo manutenção (só admin acessa)     |
+| `support_email`       | TEXT          |                                | Email de suporte exibido nos apps     |
+| `created_at`          | TIMESTAMPTZ   | NOT NULL, DEFAULT now()        |                                       |
+| `updated_at`          | TIMESTAMPTZ   | NOT NULL, DEFAULT now()        |                                       |
 
 **RLS:**
-
 ```sql
--- Admin lê tudo; ninguém mais acessa diretamente
+-- Admin lê
 CREATE POLICY "Admin read platform settings"
 ON platform_settings FOR SELECT
 USING (EXISTS (
-  SELECT 1 FROM profiles
-  WHERE profiles.id = auth.uid()
-  AND profiles.role = 'admin'
+  SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'
+));
+
+-- Admin atualiza
+CREATE POLICY "Admin update platform settings"
+ON platform_settings FOR UPDATE
+USING (EXISTS (
+  SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'
+))
+WITH CHECK (EXISTS (
+  SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'
 ));
 ```
 
@@ -237,105 +88,149 @@ USING (EXISTS (
 
 ### `tenants`
 
-Empresas cadastradas na plataforma.
+Empresas cadastradas. Soft delete via `deleted_at`.
 
-| Coluna               | Tipo          | Constraints                    | Descrição                   |
-| -------------------- | ------------- | ------------------------------ | --------------------------- |
-| `id`                 | UUID          | PK, DEFAULT uuid_generate_v4() |                             |
-| `name`               | TEXT          | NOT NULL                       | Nome do estabelecimento     |
-| `slug`               | TEXT          | NOT NULL, UNIQUE               | Identificador URL-friendly  |
-| `document`           | TEXT          |                                | CNPJ/CPF                    |
-| `email`              | TEXT          | NOT NULL                       | Email do responsável        |
-| `phone`              | TEXT          |                                | Telefone de contato         |
-| `address`            | TEXT          |                                | Endereço do estabelecimento |
-| `latitude`           | DECIMAL(10,8) |                                | Lat do estabelecimento      |
-| `longitude`          | DECIMAL(11,8) |                                | Lng do estabelecimento      |
-| `stripe_customer_id` | TEXT          |                                | ID do cliente Stripe        |
-| `is_active`          | BOOLEAN       | NOT NULL, DEFAULT true         |                             |
-| `created_at`         | TIMESTAMPTZ   | NOT NULL, DEFAULT now()        |                             |
-| `updated_at`         | TIMESTAMPTZ   | NOT NULL, DEFAULT now()        |                             |
+| Coluna               | Tipo               | Constraints                    | Descrição                      |
+| -------------------- | ------------------ | ------------------------------ | ------------------------------ |
+| `id`                 | UUID               | PK, DEFAULT uuid_generate_v4() |                                |
+| `name`               | TEXT               | NOT NULL                       | Nome fantasia                  |
+| `slug`               | TEXT               | NOT NULL, UNIQUE               | URL-friendly, lowercase, a-z0-9- |
+| `document`           | TEXT               |                                | CNPJ ou CPF (com pontuação)    |
+| `email`              | TEXT               | NOT NULL                       | Email do responsável legal     |
+| `phone`              | TEXT               |                                | Telefone com DDD               |
+| `address`            | TEXT               |                                | Endereço do estabelecimento    |
+| `latitude`           | DECIMAL(10,8)      |                                | Lat do estabelecimento         |
+| `longitude`          | DECIMAL(11,8)      |                                | Lng do estabelecimento         |
+| `logo_url`           | TEXT               |                                | URL do logo (Supabase Storage) |
+| `primary_color`      | TEXT               | DEFAULT '#3B82F6'              | Cor primária white-label       |
+| `stripe_customer_id` | TEXT               |                                | ID do cliente Stripe           |
+| `plan`               | plan               | NOT NULL, DEFAULT 'free'       | Plano contratado               |
+| `subscription_status`| subscription_status| NOT NULL, DEFAULT 'trialing'   | Status da assinatura           |
+| `is_active`          | BOOLEAN            | NOT NULL, DEFAULT true         | Ativo / suspenso               |
+| `deleted_at`         | TIMESTAMPTZ        |                                | Soft delete (NULL = ativo)     |
+| `created_at`         | TIMESTAMPTZ        | NOT NULL, DEFAULT now()        |                                |
+| `updated_at`         | TIMESTAMPTZ        | NOT NULL, DEFAULT now()        |                                |
 
 **RLS:**
-
 ```sql
--- Admin vê tudo
-CREATE POLICY "Admin read all tenants"
-ON tenants FOR SELECT
+-- Admin: full access (CRUD)
+CREATE POLICY "Admin full access tenants"
+ON tenants FOR ALL
 USING (EXISTS (
   SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'
 ));
 
--- Empresário vê só o próprio tenant
+-- Business owner: lê próprio tenant (exceto soft-deleted)
 CREATE POLICY "Business owner read own tenant"
 ON tenants FOR SELECT
-USING (EXISTS (
-  SELECT 1 FROM profiles WHERE id = auth.uid() AND tenant_id = tenants.id
-));
+USING (
+  deleted_at IS NULL
+  AND EXISTS (
+    SELECT 1 FROM profiles WHERE id = auth.uid() AND tenant_id = tenants.id
+  )
+);
+
+-- Business owner: atualiza próprio tenant
+CREATE POLICY "Business owner update own tenant"
+ON tenants FOR UPDATE
+USING (
+  deleted_at IS NULL
+  AND EXISTS (
+    SELECT 1 FROM profiles WHERE id = auth.uid() AND tenant_id = tenants.id
+  )
+)
+WITH CHECK (
+  deleted_at IS NULL
+  AND EXISTS (
+    SELECT 1 FROM profiles WHERE id = auth.uid() AND tenant_id = tenants.id
+  )
+);
 ```
 
 ---
 
 ### `tenant_settings`
 
-Configurações de taxa de entrega por tenant.
+Configurações de taxa de entrega por tenant (1:1 com tenants).
 
 | Coluna       | Tipo        | Constraints                                   | Descrição                           |
 | ------------ | ----------- | --------------------------------------------- | ----------------------------------- |
 | `id`         | UUID        | PK, DEFAULT uuid_generate_v4()                |                                     |
 | `tenant_id`  | UUID        | NOT NULL, FK → tenants(id), ON DELETE CASCADE |                                     |
-| `fee_ranges` | JSONB       | NOT NULL, DEFAULT '[]'                        | Array de faixas {minKm, maxKm, fee} |
+| `fee_ranges` | JSONB       | NOT NULL, DEFAULT '[]'                        | [{minKm, maxKm, fee}]               |
 | `created_at` | TIMESTAMPTZ | NOT NULL, DEFAULT now()                       |                                     |
 | `updated_at` | TIMESTAMPTZ | NOT NULL, DEFAULT now()                       |                                     |
 
 **RLS:**
-
 ```sql
-CREATE POLICY "Tenant isolation"
+-- Business owner: full access no próprio tenant_settings
+CREATE POLICY "Business owner full access tenant_settings"
 ON tenant_settings FOR ALL
-USING (tenant_id = (SELECT tenant_id FROM profiles WHERE id = auth.uid()));
+USING (
+  tenant_id = (SELECT tenant_id FROM profiles WHERE id = auth.uid())
+);
+
+-- Admin: read all
+CREATE POLICY "Admin read all tenant_settings"
+ON tenant_settings FOR SELECT
+USING (EXISTS (
+  SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'
+));
 ```
 
 ---
 
 ### `profiles`
 
-Perfil de usuários (estende auth.users).
+Perfil de usuários (estende auth.users). Soft delete via `deleted_at`.
 
-| Coluna       | Tipo        | Constraints                                | Descrição       |
-| ------------ | ----------- | ------------------------------------------ | --------------- |
-| `id`         | UUID        | PK, FK → auth.users(id), ON DELETE CASCADE |                 |
-| `tenant_id`  | UUID        | FK → tenants(id), ON DELETE SET NULL       | NULL para admin |
-| `role`       | user_role   | NOT NULL, DEFAULT 'business_owner'         |                 |
-| `full_name`  | TEXT        |                                            | Nome completo   |
-| `phone`      | TEXT        |                                            | Telefone        |
-| `is_active`  | BOOLEAN     | NOT NULL, DEFAULT true                     |                 |
-| `created_at` | TIMESTAMPTZ | NOT NULL, DEFAULT now()                    |                 |
-| `updated_at` | TIMESTAMPTZ | NOT NULL, DEFAULT now()                    |                 |
+| Coluna             | Tipo        | Constraints                                | Descrição                      |
+| ------------------ | ----------- | ------------------------------------------ | ------------------------------ |
+| `id`               | UUID        | PK, FK → auth.users(id), ON DELETE CASCADE |                                |
+| `tenant_id`        | UUID        | FK → tenants(id), ON DELETE SET NULL       | NULL para admin                |
+| `role`             | user_role   | NOT NULL, DEFAULT 'business_owner'         |                                |
+| `full_name`        | TEXT        | NOT NULL                                   | Nome completo                  |
+| `phone`            | TEXT        |                                            | Telefone com DDD               |
+| `avatar_url`       | TEXT        |                                            | Foto de perfil (Storage)       |
+| `email_verified_at`| TIMESTAMPTZ |                                            | Quando confirmou email         |
+| `last_sign_in_at`  | TIMESTAMPTZ |                                            | Último login                   |
+| `is_active`        | BOOLEAN     | NOT NULL, DEFAULT true                     |                                |
+| `deleted_at`       | TIMESTAMPTZ |                                            | Soft delete                    |
+| `created_at`       | TIMESTAMPTZ | NOT NULL, DEFAULT now()                    |                                |
+| `updated_at`       | TIMESTAMPTZ | NOT NULL, DEFAULT now()                    |                                |
 
 **RLS:**
-
 ```sql
--- Admin vê tudo
-CREATE POLICY "Admin read all profiles"
-ON profiles FOR SELECT
-USING (EXISTS (
-  SELECT 1 FROM profiles self WHERE self.id = auth.uid() AND self.role = 'admin'
-));
+-- Admin: full access
+CREATE POLICY "Admin full access profiles"
+ON profiles FOR ALL
+USING (
+  deleted_at IS NULL
+  AND EXISTS (SELECT 1 FROM profiles self WHERE self.id = auth.uid() AND self.role = 'admin')
+);
 
--- Empresário vê só perfis do próprio tenant
+-- Business owner: lê perfis do próprio tenant
 CREATE POLICY "Business owner read tenant profiles"
 ON profiles FOR SELECT
 USING (
-  tenant_id = (SELECT tenant_id FROM profiles WHERE id = auth.uid())
+  deleted_at IS NULL
+  AND tenant_id = (SELECT tenant_id FROM profiles WHERE id = auth.uid())
 );
 
--- Motoboy vê só o próprio perfil
+-- Business owner: cria courier no próprio tenant
+CREATE POLICY "Business owner insert courier profile"
+ON profiles FOR INSERT
+WITH CHECK (
+  role = 'courier'
+  AND tenant_id = (SELECT tenant_id FROM profiles WHERE id = auth.uid())
+);
+
+-- Courier: lê e atualiza só o próprio perfil
 CREATE POLICY "Courier read own profile"
 ON profiles FOR SELECT
-USING (id = auth.uid());
+USING (id = auth.uid() AND deleted_at IS NULL);
 
--- Cada um atualiza só o próprio perfil
-CREATE POLICY "Users update own profile"
+CREATE POLICY "Courier update own profile"
 ON profiles FOR UPDATE
 USING (id = auth.uid())
 WITH CHECK (id = auth.uid());
@@ -347,32 +242,37 @@ WITH CHECK (id = auth.uid());
 
 Dados específicos do motoboy.
 
-| Coluna           | Tipo           | Constraints                                   | Descrição           |
-| ---------------- | -------------- | --------------------------------------------- | ------------------- |
-| `id`             | UUID           | PK, FK → profiles(id), ON DELETE CASCADE      |                     |
-| `tenant_id`      | UUID           | NOT NULL, FK → tenants(id), ON DELETE CASCADE |                     |
-| `vehicle_type`   | TEXT           |                                               | Tipo de veículo     |
-| `vehicle_plate`  | TEXT           |                                               | Placa               |
-| `license_number` | TEXT           |                                               | Número da CNH       |
-| `status`         | courier_status | NOT NULL, DEFAULT 'offline'                   |                     |
-| `fcm_token`      | TEXT           |                                               | Token FCM para push |
-| `created_at`     | TIMESTAMPTZ    | NOT NULL, DEFAULT now()                       |                     |
-| `updated_at`     | TIMESTAMPTZ    | NOT NULL, DEFAULT now()                       |                     |
+| Coluna               | Tipo           | Constraints                                   | Descrição                      |
+| -------------------- | -------------- | --------------------------------------------- | ------------------------------ |
+| `id`                 | UUID           | PK, FK → profiles(id), ON DELETE CASCADE      |                                |
+| `tenant_id`          | UUID           | NOT NULL, FK → tenants(id), ON DELETE CASCADE |                                |
+| `vehicle_type`       | TEXT           |                                               | Moto, bike, carro, etc         |
+| `vehicle_plate`      | TEXT           |                                               | Placa                          |
+| `license_number`     | TEXT           |                                               | Número da CNH                  |
+| `status`             | courier_status | NOT NULL, DEFAULT 'offline'                   |                                |
+| `current_location_lat`| DECIMAL(10,8) |                                               | Última posição conhecida        |
+| `current_location_lng`| DECIMAL(11,8) |                                               | Última posição conhecida        |
+| `last_location_at`   | TIMESTAMPTZ    |                                               | Quando atualizou GPS           |
+| `rating`             | DECIMAL(3,2)   | DEFAULT 5.00                                  | Média 0-5                      |
+| `total_deliveries`   | INTEGER        | NOT NULL, DEFAULT 0                           | Total de entregas finalizadas  |
+| `total_earnings`     | DECIMAL(10,2)  | NOT NULL, DEFAULT 0                           | Soma de ganhos (R$)            |
+| `fcm_token`          | TEXT           |                                               | Token FCM para push            |
+| `created_at`         | TIMESTAMPTZ    | NOT NULL, DEFAULT now()                       |                                |
+| `updated_at`         | TIMESTAMPTZ    | NOT NULL, DEFAULT now()                       |                                |
 
 **RLS:**
-
 ```sql
--- Empresário vê couriers do próprio tenant
-CREATE POLICY "Business owner read tenant couriers"
-ON couriers FOR SELECT
+-- Business owner: full access em couriers do próprio tenant
+CREATE POLICY "Business owner full access couriers"
+ON couriers FOR ALL
 USING (tenant_id = (SELECT tenant_id FROM profiles WHERE id = auth.uid()));
 
--- Motoboy vê só o próprio registro
+-- Courier: lê próprio registro
 CREATE POLICY "Courier read own record"
 ON couriers FOR SELECT
 USING (id = auth.uid());
 
--- Motoboy atualiza próprio status e fcm_token
+-- Courier: atualiza status, fcm_token, location
 CREATE POLICY "Courier update own record"
 ON couriers FOR UPDATE
 USING (id = auth.uid())
@@ -383,48 +283,50 @@ WITH CHECK (id = auth.uid());
 
 ### `orders`
 
-Pedidos de entrega.
+Pedidos de entrega. Soft delete via `deleted_at`.
 
-| Coluna             | Tipo          | Constraints                                   | Descrição             |
-| ------------------ | ------------- | --------------------------------------------- | --------------------- |
-| `id`               | UUID          | PK, DEFAULT uuid_generate_v4()                |                       |
-| `tenant_id`        | UUID          | NOT NULL, FK → tenants(id), ON DELETE CASCADE |                       |
-| `courier_id`       | UUID          | FK → couriers(id), ON DELETE SET NULL         |                       |
-| `status`           | order_status  | NOT NULL, DEFAULT 'draft'                     |                       |
-| `customer_name`    | TEXT          | NOT NULL                                      | Nome do cliente final |
-| `customer_phone`   | TEXT          | NOT NULL                                      | Telefone do cliente   |
-| `pickup_address`   | TEXT          | NOT NULL                                      | Endereço de coleta    |
-| `pickup_lat`       | DECIMAL(10,8) |                                               |                       |
-| `pickup_lng`       | DECIMAL(11,8) |                                               |                       |
-| `delivery_address` | TEXT          | NOT NULL                                      | Endereço de entrega   |
-| `delivery_lat`     | DECIMAL(10,8) |                                               |                       |
-| `delivery_lng`     | DECIMAL(11,8) |                                               |                       |
-| `order_value`      | DECIMAL(10,2) | NOT NULL, DEFAULT 0                           | Valor do pedido       |
-| `delivery_fee`     | DECIMAL(10,2) | NOT NULL, DEFAULT 0                           | Taxa de entrega       |
-| `platform_fee`     | DECIMAL(10,2) | NOT NULL, DEFAULT 0                           | Taxa da plataforma    |
-| `rejection_reason` | TEXT          |                                               | Motivo da recusa      |
-| `created_at`       | TIMESTAMPTZ   | NOT NULL, DEFAULT now()                       |                       |
-| `updated_at`       | TIMESTAMPTZ   | NOT NULL, DEFAULT now()                       |                       |
+| Coluna                  | Tipo          | Constraints                                   | Descrição                      |
+| ----------------------- | ------------- | --------------------------------------------- | ------------------------------ |
+| `id`                    | UUID          | PK, DEFAULT uuid_generate_v4()                |                                |
+| `tenant_id`             | UUID          | NOT NULL, FK → tenants(id), ON DELETE CASCADE |                                |
+| `courier_id`            | UUID          | FK → couriers(id), ON DELETE SET NULL         |                                |
+| `created_by`            | UUID          | NOT NULL, FK → profiles(id)                   | Quem criou o pedido            |
+| `status`                | order_status  | NOT NULL, DEFAULT 'draft'                       |                                |
+| `customer_name`         | TEXT          | NOT NULL                                      | Nome do cliente final          |
+| `customer_phone`        | TEXT          | NOT NULL                                      | Telefone do cliente            |
+| `pickup_address`        | TEXT          | NOT NULL                                      | Endereço de coleta             |
+| `pickup_lat`            | DECIMAL(10,8) |                                               |                                |
+| `pickup_lng`            | DECIMAL(11,8) |                                               |                                |
+| `delivery_address`      | TEXT          | NOT NULL                                      | Endereço de entrega            |
+| `delivery_lat`          | DECIMAL(10,8) |                                               |                                |
+| `delivery_lng`          | DECIMAL(11,8) |                                               |                                |
+| `distance_km`           | DECIMAL(10,2) | DEFAULT 0                                     | Distância calculada (km)       |
+| `estimated_minutes`     | INTEGER       |                                               | ETA em minutos                 |
+| `order_value`           | DECIMAL(10,2) | NOT NULL, DEFAULT 0                           | Valor do pedido (R$)           |
+| `delivery_fee`          | DECIMAL(10,2) | NOT NULL, DEFAULT 0                           | Taxa de entrega (R$)           |
+| `platform_fee`          | DECIMAL(10,2) | NOT NULL, DEFAULT 0                           | Taxa da plataforma (R$)        |
+| `rejection_reason`      | TEXT          |                                               | Motivo da recusa               |
+| `delivered_at`          | TIMESTAMPTZ   |                                               | Quando foi entregue            |
+| `deleted_at`            | TIMESTAMPTZ   |                                               | Soft delete                    |
+| `created_at`            | TIMESTAMPTZ   | NOT NULL, DEFAULT now()                       |                                |
+| `updated_at`            | TIMESTAMPTZ   | NOT NULL, DEFAULT now()                       |                                |
 
 **RLS:**
-
 ```sql
--- Empresário vê pedidos do próprio tenant
-CREATE POLICY "Business owner read tenant orders"
-ON orders FOR SELECT
-USING (tenant_id = (SELECT tenant_id FROM profiles WHERE id = auth.uid()));
+-- Business owner: full access em pedidos do próprio tenant
+CREATE POLICY "Business owner full access orders"
+ON orders FOR ALL
+USING (
+  deleted_at IS NULL
+  AND tenant_id = (SELECT tenant_id FROM profiles WHERE id = auth.uid())
+);
 
--- Empresário cria pedidos no próprio tenant
-CREATE POLICY "Business owner insert tenant orders"
-ON orders FOR INSERT
-WITH CHECK (tenant_id = (SELECT tenant_id FROM profiles WHERE id = auth.uid()));
-
--- Motoboy vê pedidos atribuídos a ele
+-- Courier: lê pedidos atribuídos
 CREATE POLICY "Courier read assigned orders"
 ON orders FOR SELECT
-USING (courier_id = auth.uid());
+USING (courier_id = auth.uid() AND deleted_at IS NULL);
 
--- Motoboy atualiza status de pedidos atribuídos
+-- Courier: atualiza status de pedidos atribuídos
 CREATE POLICY "Courier update assigned orders"
 ON orders FOR UPDATE
 USING (courier_id = auth.uid())
@@ -435,35 +337,44 @@ WITH CHECK (courier_id = auth.uid());
 
 ### `order_status_history`
 
-Audit trail imutável de mudanças de status.
+Audit trail imutável.
 
-| Coluna       | Tipo         | Constraints                                  | Descrição         |
-| ------------ | ------------ | -------------------------------------------- | ----------------- |
-| `id`         | UUID         | PK, DEFAULT uuid_generate_v4()               |                   |
-| `order_id`   | UUID         | NOT NULL, FK → orders(id), ON DELETE CASCADE |                   |
-| `status`     | order_status | NOT NULL                                     | Status registrado |
-| `notes`      | TEXT         |                                              | Observações       |
-| `created_at` | TIMESTAMPTZ  | NOT NULL, DEFAULT now()                      |                   |
+| Coluna       | Tipo         | Constraints                                  | Descrição                      |
+| ------------ | ------------ | -------------------------------------------- | ------------------------------ |
+| `id`         | UUID         | PK, DEFAULT uuid_generate_v4()               |                                |
+| `order_id`   | UUID         | NOT NULL, FK → orders(id), ON DELETE CASCADE |                                |
+| `status`     | order_status | NOT NULL                                     | Status registrado              |
+| `notes`      | TEXT         |                                              | Observações                    |
+| `created_by` | UUID         | FK → profiles(id)                              | Quem mudou o status            |
+| `created_at` | TIMESTAMPTZ  | NOT NULL, DEFAULT now()                      |                                |
 
 **RLS:**
-
 ```sql
--- Empresário vê histórico de pedidos do tenant
+-- Business owner: lê histórico de pedidos do tenant
 CREATE POLICY "Business owner read tenant history"
 ON order_status_history FOR SELECT
 USING (EXISTS (
   SELECT 1 FROM orders o
   WHERE o.id = order_status_history.order_id
   AND o.tenant_id = (SELECT tenant_id FROM profiles WHERE id = auth.uid())
+  AND o.deleted_at IS NULL
 ));
 
--- Motoboy vê histórico de pedidos atribuídos
+-- Courier: lê histórico de pedidos atribuídos
 CREATE POLICY "Courier read assigned history"
 ON order_status_history FOR SELECT
 USING (EXISTS (
   SELECT 1 FROM orders o
   WHERE o.id = order_status_history.order_id
   AND o.courier_id = auth.uid()
+  AND o.deleted_at IS NULL
+));
+
+-- Admin: read all
+CREATE POLICY "Admin read all history"
+ON order_status_history FOR SELECT
+USING (EXISTS (
+  SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'
 ));
 ```
 
@@ -475,7 +386,7 @@ Posição GPS em tempo real.
 
 | Coluna        | Tipo          | Constraints                                    | Descrição          |
 | ------------- | ------------- | ---------------------------------------------- | ------------------ |
-| `id`          | UUID          | PK, DEFAULT uuid_generate_v4()                 |                    |
+| `id`          | UUID          | PK, DEFAULT uuid_generate_v4()                |                    |
 | `courier_id`  | UUID          | NOT NULL, FK → couriers(id), ON DELETE CASCADE |                    |
 | `latitude`    | DECIMAL(10,8) | NOT NULL                                       |                    |
 | `longitude`   | DECIMAL(11,8) | NOT NULL                                       |                    |
@@ -483,9 +394,8 @@ Posição GPS em tempo real.
 | `recorded_at` | TIMESTAMPTZ   | NOT NULL, DEFAULT now()                        |                    |
 
 **RLS:**
-
 ```sql
--- Empresário vê localização de couriers do tenant
+-- Business owner: lê localizações de couriers do tenant
 CREATE POLICY "Business owner read tenant locations"
 ON courier_locations FOR SELECT
 USING (EXISTS (
@@ -494,12 +404,11 @@ USING (EXISTS (
   AND c.tenant_id = (SELECT tenant_id FROM profiles WHERE id = auth.uid())
 ));
 
--- Motoboy vê só a própria localização
+-- Courier: lê e insere própria localização
 CREATE POLICY "Courier read own location"
 ON courier_locations FOR SELECT
 USING (courier_id = auth.uid());
 
--- Motoboy insere própria localização
 CREATE POLICY "Courier insert own location"
 ON courier_locations FOR INSERT
 WITH CHECK (courier_id = auth.uid());
@@ -511,28 +420,30 @@ WITH CHECK (courier_id = auth.uid());
 
 Registros pay-as-you-go.
 
-| Coluna                     | Tipo           | Constraints                                   | Descrição              |
-| -------------------------- | -------------- | --------------------------------------------- | ---------------------- |
-| `id`                       | UUID           | PK, DEFAULT uuid_generate_v4()                |                        |
-| `tenant_id`                | UUID           | NOT NULL, FK → tenants(id), ON DELETE CASCADE |                        |
-| `order_id`                 | UUID           | NOT NULL, FK → orders(id), ON DELETE CASCADE  |                        |
-| `stripe_payment_intent_id` | TEXT           |                                               | ID do pagamento Stripe |
-| `amount`                   | DECIMAL(10,2)  | NOT NULL                                      | Valor cobrado          |
-| `status`                   | payment_status | NOT NULL, DEFAULT 'pending'                   |                        |
-| `created_at`               | TIMESTAMPTZ    | NOT NULL, DEFAULT now()                       |                        |
-| `updated_at`               | TIMESTAMPTZ    | NOT NULL, DEFAULT now()                       |                        |
+| Coluna                     | Tipo           | Constraints                                   | Descrição                      |
+| -------------------------- | -------------- | --------------------------------------------- | ------------------------------ |
+| `id`                       | UUID           | PK, DEFAULT uuid_generate_v4()                |                                |
+| `tenant_id`                | UUID           | NOT NULL, FK → tenants(id), ON DELETE CASCADE |                                |
+| `order_id`                 | UUID           | NOT NULL, FK → orders(id), ON DELETE CASCADE  |                                |
+| `stripe_payment_intent_id` | TEXT           |                                               | ID do PaymentIntent Stripe     |
+| `stripe_invoice_id`        | TEXT           |                                               | ID da fatura Stripe            |
+| `amount`                   | DECIMAL(10,2)  | NOT NULL                                      | Valor cobrado (R$)             |
+| `status`                   | payment_status | NOT NULL, DEFAULT 'pending'                   |                                |
+| `receipt_url`              | TEXT           |                                               | Link do comprovante Stripe     |
+| `paid_at`                  | TIMESTAMPTZ    |                                               | Quando foi confirmado          |
+| `created_at`               | TIMESTAMPTZ    | NOT NULL, DEFAULT now()                       |                                |
+| `updated_at`               | TIMESTAMPTZ    | NOT NULL, DEFAULT now()                       |                                |
 
 **RLS:**
-
 ```sql
--- Admin vê tudo
+-- Admin: read all
 CREATE POLICY "Admin read all payments"
 ON payments FOR SELECT
 USING (EXISTS (
   SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'
 ));
 
--- Empresário vê próprios pagamentos
+-- Business owner: read own payments
 CREATE POLICY "Business owner read own payments"
 ON payments FOR SELECT
 USING (tenant_id = (SELECT tenant_id FROM profiles WHERE id = auth.uid()));
@@ -542,24 +453,24 @@ USING (tenant_id = (SELECT tenant_id FROM profiles WHERE id = auth.uid()));
 
 ### `notifications`
 
-Log de notificações push.
+Notificações push/log.
 
-| Coluna         | Tipo        | Constraints                                    | Descrição           |
-| -------------- | ----------- | ---------------------------------------------- | ------------------- |
-| `id`           | UUID        | PK, DEFAULT uuid_generate_v4()                 |                     |
-| `recipient_id` | UUID        | NOT NULL, FK → profiles(id), ON DELETE CASCADE |                     |
-| `type`         | TEXT        | NOT NULL                                       | Tipo da notificação |
-| `title`        | TEXT        | NOT NULL                                       |                     |
-| `body`         | TEXT        | NOT NULL                                       |                     |
-| `data`         | JSONB       |                                                | Payload extra       |
-| `is_read`      | BOOLEAN     | NOT NULL, DEFAULT false                        |                     |
-| `created_at`   | TIMESTAMPTZ | NOT NULL, DEFAULT now()                        |                     |
+| Coluna         | Tipo        | Constraints                                    | Descrição                      |
+| -------------- | ----------- | ---------------------------------------------- | ------------------------------ |
+| `id`           | UUID        | PK, DEFAULT uuid_generate_v4()                 |                                |
+| `recipient_id` | UUID        | NOT NULL, FK → profiles(id), ON DELETE CASCADE |                                |
+| `type`         | TEXT        | NOT NULL                                       | Tipo da notificação            |
+| `title`        | TEXT        | NOT NULL                                       |                                |
+| `body`         | TEXT        | NOT NULL                                       |                                |
+| `data`         | JSONB       |                                                | Payload extra                  |
+| `is_read`      | BOOLEAN     | NOT NULL, DEFAULT false                        |                                |
+| `expires_at`   | TIMESTAMPTZ |                                                | Auto-cleanup                   |
+| `created_at`   | TIMESTAMPTZ | NOT NULL, DEFAULT now()                        |                                |
 
 **RLS:**
-
 ```sql
--- Usuário vê só suas próprias notificações
-CREATE POLICY "Users read own notifications"
+-- Recipient: full access nas próprias notificações
+CREATE POLICY "Users full access own notifications"
 ON notifications FOR ALL
 USING (recipient_id = auth.uid());
 ```
@@ -569,137 +480,72 @@ USING (recipient_id = auth.uid());
 ## 🔧 Triggers e Functions
 
 ### `update_timestamp()`
-
 Atualiza `updated_at` em todas as tabelas.
 
-```sql
-CREATE OR REPLACE FUNCTION update_timestamp()
-RETURNS TRIGGER AS $$
-BEGIN
-  NEW.updated_at = timezone('utc'::text, now());
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-```
-
 ### `calculate_platform_fee()`
-
-Disparado ao atualizar order para `delivered`.
-
-```sql
-CREATE OR REPLACE FUNCTION calculate_platform_fee()
-RETURNS TRIGGER AS $$
-DECLARE
-  v_settings platform_settings%ROWTYPE;
-  v_fee DECIMAL(10,2);
-BEGIN
-  IF NEW.status = 'delivered' AND OLD.status != 'delivered' THEN
-    SELECT * INTO v_settings FROM platform_settings WHERE is_active = true LIMIT 1;
-    v_fee := GREATEST(NEW.delivery_fee * (v_settings.platform_percentage / 100), v_settings.min_tax_fee);
-    NEW.platform_fee := v_fee;
-  END IF;
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-```
+Disparado BEFORE UPDATE em `orders`. Quando status muda para `delivered`, calcula `platform_fee` com base em `platform_settings`.
 
 ### `audit_order_status()`
+Disparado AFTER UPDATE em `orders`. Insere `order_status_history` com `created_by = auth.uid()`.
 
-Insere em `order_status_history` a cada mudança.
+### `sync_courier_location()`
+Disparado AFTER INSERT em `courier_locations`. Atualiza `couriers.current_location_lat`, `current_location_lng`, `last_location_at`.
 
-```sql
-CREATE OR REPLACE FUNCTION audit_order_status()
-RETURNS TRIGGER AS $$
-BEGIN
-  INSERT INTO order_status_history (order_id, status, notes)
-  VALUES (NEW.id, NEW.status, NULL);
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-```
-
-### `notify_courier_on_order()`
-
-Dispara notificação push ao motoboy.
-
-```sql
-CREATE OR REPLACE FUNCTION notify_courier_on_order()
-RETURNS TRIGGER AS $$
-BEGIN
-  IF NEW.courier_id IS NOT NULL AND OLD.courier_id IS NULL THEN
-    PERFORM net.http_post(
-      'https://seudominio.com/api/webhooks/notify-courier',
-      jsonb_build_object(
-        'courier_id', NEW.courier_id,
-        'order_id', NEW.id,
-        'type', 'new_order'
-      )
-    );
-  END IF;
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-```
+### `update_courier_stats()`
+Disparado AFTER UPDATE em `orders`. Quando status muda para `delivered`, incrementa `couriers.total_deliveries` e soma `delivery_fee` em `total_earnings`.
 
 ---
 
-## 📊 Índices
+## 📊 Índices (revisados)
 
 ```sql
--- Performance: busca de pedidos por tenant + status
-CREATE INDEX idx_orders_tenant_status ON orders(tenant_id, status);
+-- Orders: principais padrões de query
+CREATE INDEX idx_orders_tenant_status ON orders(tenant_id, status) WHERE deleted_at IS NULL;
+CREATE INDEX idx_orders_tenant_created ON orders(tenant_id, created_at DESC) WHERE deleted_at IS NULL;
+CREATE INDEX idx_orders_courier ON orders(courier_id) WHERE deleted_at IS NULL;
+CREATE INDEX idx_orders_status ON orders(status) WHERE deleted_at IS NULL;
+CREATE INDEX idx_orders_created ON orders(created_at DESC) WHERE deleted_at IS NULL;
 
--- Performance: busca de pedidos por motoboy
-CREATE INDEX idx_orders_courier ON orders(courier_id);
+-- History
+CREATE INDEX idx_order_history_order_id ON order_status_history(order_id, created_at DESC);
 
--- Performance: histórico de um pedido
-CREATE INDEX idx_order_history_order_id ON order_status_history(order_id);
-
--- Performance: localização por motoboy + tempo
+-- Locations
 CREATE INDEX idx_courier_locations_courier_recorded ON courier_locations(courier_id, recorded_at DESC);
 
--- Performance: pagamentos por tenant
-CREATE INDEX idx_payments_tenant ON payments(tenant_id);
+-- Payments
+CREATE INDEX idx_payments_tenant_created ON payments(tenant_id, created_at DESC);
 
--- Performance: notificações não lidas
+-- Notifications
 CREATE INDEX idx_notifications_recipient_read ON notifications(recipient_id, is_read) WHERE is_read = false;
 
--- Performance: busca de tenant por slug
-CREATE INDEX idx_tenants_slug ON tenants(slug);
+-- Tenants
+CREATE INDEX idx_tenants_slug ON tenants(slug) WHERE deleted_at IS NULL;
+CREATE INDEX idx_tenants_active ON tenants(is_active, deleted_at) WHERE deleted_at IS NULL;
+
+-- Profiles
+CREATE INDEX idx_profiles_tenant ON profiles(tenant_id) WHERE deleted_at IS NULL;
+CREATE INDEX idx_profiles_role ON profiles(role) WHERE deleted_at IS NULL;
+
+-- Couriers
+CREATE INDEX idx_couriers_tenant ON couriers(tenant_id);
+CREATE INDEX idx_couriers_status ON couriers(status) WHERE status = 'available';
+CREATE INDEX idx_couriers_tenant_status ON couriers(tenant_id, status) WHERE status = 'available';
 ```
 
 ---
 
-## 🌱 Seed Data
+## ✅ Checklist Final de Aprovação
 
-```sql
--- Configuração inicial da plataforma
-INSERT INTO platform_settings (min_tax_fee, platform_percentage)
-VALUES (5.00, 20.00);
-```
-
----
-
-## ✅ Checklist de Aprovação do Schema
-
-Antes de criar qualquer migration:
-
-- [ ] Diagrama ER completo com todas as tabelas e FKs
-- [ ] TODOS os enums definidos e documentados
-- [ ] TODAS as colunas tipadas corretamente
-- [ ] TODAS as tabelas com `tenant_id` (quando aplicável)
-- [ ] TODAS as tabelas com RLS habilitado e policies definidas
-- [ ] TODAS as triggers e functions documentadas
-- [ ] Índices de performance especificados
-- [ ] Seed data definido
-- [ ] Nomenclatura consistente (inglês snake_case)
-
-**APROVADO?** ⬜ Sim / ⬜ Não (justifique)
-
----
-
-## 📚 Referências
-
-- [Supabase RLS](https://supabase.com/docs/guides/auth/row-level-security)
-- [PostgreSQL Triggers](https://www.postgresql.org/docs/current/triggers.html)
-- [Mermaid ER Diagrams](https://mermaid.js.org/syntax/entityRelationshipDiagram.html)
+- [x] TODAS as tabelas com soft delete (`deleted_at`) onde aplicável
+- [x] TODAS as tabelas com RLS habilitado e policies completas (CRUD por role)
+- [x] TODOS os enums definidos e documentados
+- [x] TODAS as colunas tipadas corretamente com constraints
+- [x] TODAS as FKs com ON DELETE CASCADE/SET NULL apropriado
+- [x] Triggers documentados: update_timestamp, calculate_platform_fee, audit_order_status, sync_courier_location, update_courier_stats
+- [x] Índices de performance com partial indexes (WHERE deleted_at IS NULL)
+- [x] Seed data definido
+- [x] Nomenclatura consistente (inglês snake_case)
+- [x] Colunas de audit (created_by, delivered_at, last_location_at)
+- [x] White-label fields (logo_url, primary_color)
+- [x] Subscription fields (plan, subscription_status)
+- [x] Courier stats (rating, total_deliveries, total_earnings, current_location)
