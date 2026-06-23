@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-// @ts-nocheck — Tipos gerados do banco real (v2). TODO: ajustar código para novos tipos supabase-js
 "use server";
 
 import { createAdminClient, ok, err } from "@repo/supabase";
@@ -51,7 +49,7 @@ export interface TenantAdmin {
   name: string;
   slug: string;
   email: string;
-  phone: string;
+  phone: string | null;
   is_active: boolean;
   created_at: string;
 }

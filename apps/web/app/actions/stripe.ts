@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-// @ts-nocheck — Tipos gerados do banco real (v2). TODO: ajustar código para novos tipos supabase-js
 "use server";
 
 import Stripe from "stripe";
@@ -24,6 +22,10 @@ export async function createSetupIntent(): Promise<Result<{ clientSecret: string
 
   if (authError || !user) {
     return err("Não autenticado", "auth/unauthenticated");
+  }
+
+  if (!user.email) {
+    return err("Email não disponível", "auth/email-missing");
   }
 
   const { data: tenant } = await supabase

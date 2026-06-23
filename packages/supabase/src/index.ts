@@ -6,7 +6,7 @@ export { createAdminClient } from "./admin";
 export { updateSession } from "./middleware";
 export { ok, err, fromSupabase } from "./types";
 export type { Result, AppError } from "./types";
-export type { Tables, Enums } from "./database.types";
+export type { Tables, Enums, Json } from "./database.types";
 export type { Database };
 
 // Re-exportar tipos de enums para conveniência

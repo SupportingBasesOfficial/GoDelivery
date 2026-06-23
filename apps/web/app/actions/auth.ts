@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-// @ts-nocheck — Tipos gerados do banco real (v2). TODO: ajustar código para novos tipos supabase-js
 "use server";
 
 import { revalidatePath } from "next/cache";

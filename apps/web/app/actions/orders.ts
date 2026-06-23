@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-// @ts-nocheck — Tipos gerados do banco real (v2). TODO: ajustar código para novos tipos supabase-js
 "use server";
 
 import { revalidatePath } from "next/cache";
@@ -104,6 +102,7 @@ export async function createOrder(
     .from("orders")
     .insert({
       tenant_id: profile.tenant_id,
+      created_by: user.id,
       customer_name: data.customerName,
       customer_phone: data.customerPhone,
       pickup_address: data.pickupAddress,

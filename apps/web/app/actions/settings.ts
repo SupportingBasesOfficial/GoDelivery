@@ -1,9 +1,7 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-// @ts-nocheck — Tipos gerados do banco real (v2). TODO: ajustar código para novos tipos supabase-js
 "use server";
 
 import { createServerClient, ok, err } from "@repo/supabase";
-import type { Result } from "@repo/supabase";
+import type { Result, Json } from "@repo/supabase";
 
 export interface FeeRange {
   minKm: number;
@@ -50,7 +48,7 @@ export async function getTenantSettings(): Promise<Result<TenantSettingsData>> {
     return err(settingsError.message, "settings/fetch-failed");
   }
 
-  return ok({ feeRanges: (settings?.fee_ranges as FeeRange[]) ?? [] });
+  return ok({ feeRanges: ((settings?.fee_ranges as unknown) as FeeRange[]) ?? [] });
 }
 
 /**
@@ -82,7 +80,7 @@ export async function updateTenantSettings(
 
   const { error } = await supabase
     .from("tenant_settings")
-    .update({ fee_ranges: data.feeRanges })
+    .update({ fee_ranges: data.feeRanges as unknown as Json })
     .eq("tenant_id", profile.tenant_id);
 
   if (error) {
