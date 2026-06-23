@@ -7,10 +7,12 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  async function handleSubmit(formData: FormData) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
     setLoading(true);
     setError(null);
 
+    const formData = new FormData(e.currentTarget);
     const result = await signIn({
       email: formData.get("email") as string,
       password: formData.get("password") as string,
@@ -32,7 +34,7 @@ export default function LoginPage() {
         </div>
 
         <form
-          action={handleSubmit}
+          onSubmit={handleSubmit}
           className="space-y-4 rounded-xl bg-white p-6 shadow"
         >
           <div>

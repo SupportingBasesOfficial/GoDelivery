@@ -9,10 +9,12 @@ export default function RegisterPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  async function handleSubmit(formData: FormData) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
     setLoading(true);
     setError(null);
 
+    const formData = new FormData(e.currentTarget);
     const password = formData.get("password") as string;
     const confirmPassword = formData.get("confirm_password") as string;
 
@@ -53,7 +55,7 @@ export default function RegisterPage() {
         </div>
 
         <form
-          action={handleSubmit}
+          onSubmit={handleSubmit}
           className="space-y-4 rounded-xl bg-white p-6 shadow"
         >
           <div>
