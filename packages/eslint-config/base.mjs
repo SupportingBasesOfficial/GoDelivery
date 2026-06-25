@@ -5,6 +5,18 @@ import reactHooks from 'eslint-plugin-react-hooks'
 
 const baseConfig = [
   {
+    ignores: [
+      '**/node_modules/**',
+      '**/.next/**',
+      '**/dist/**',
+      '**/web-build/**',
+      '**/out/**',
+      '**/*.config.*',
+      '**/coverage/**',
+      '**/.turbo/**',
+    ],
+  },
+  {
     files: ['**/*.ts', '**/*.tsx', '**/*.js', '**/*.jsx'],
     languageOptions: {
       parser: tsparser,
