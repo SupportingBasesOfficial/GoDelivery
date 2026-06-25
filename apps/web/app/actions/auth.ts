@@ -149,7 +149,7 @@ export async function signIn(data: SignInData): Promise<Result<void>> {
 
   const supabase = await createServerClient();
 
-  const { data: _signInData, error } = await supabase.auth.signInWithPassword({
+  const { error } = await supabase.auth.signInWithPassword({
     email: data.email,
     password: data.password,
   });
