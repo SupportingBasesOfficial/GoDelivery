@@ -37,6 +37,7 @@ describe("retry", () => {
     const originalSetTimeout = globalThis.setTimeout;
 
     // Mock setTimeout para capturar delays
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (globalThis as any).setTimeout = (cb: () => void, ms: number) => {
       delays.push(ms);
       return originalSetTimeout(cb, 1); // acelera teste
@@ -51,6 +52,7 @@ describe("retry", () => {
     try {
       await retry(fn, { maxRetries: 3, baseDelay: 100 });
     } finally {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (globalThis as any).setTimeout = originalSetTimeout;
     }
 
