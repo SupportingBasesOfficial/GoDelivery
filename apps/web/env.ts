@@ -21,9 +21,9 @@ export const env = createEnv({
    * Variáveis de ambiente do lado do servidor
    */
   server: {
-    SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
-    STRIPE_SECRET_KEY: z.string().min(1),
-    STRIPE_WEBHOOK_SECRET: z.string().min(1),
+    SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
+    STRIPE_SECRET_KEY: z.string().min(1).optional(),
+    STRIPE_WEBHOOK_SECRET: z.string().min(1).optional(),
   },
   /**
    * Variáveis de ambiente para runtime (não validadas em build-time)
