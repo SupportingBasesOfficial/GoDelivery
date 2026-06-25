@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from "react-native";
 import { supabase } from "../lib/supabase";
 import type { AuthUser } from "../hooks/useAuth";
@@ -22,11 +22,7 @@ interface ProfileScreenProps {
 export default function ProfileScreen({ user, onBack, onSignOut }: ProfileScreenProps) {
   const [profile, setProfile] = useState<ProfileData | null>(null);
 
-  useEffect(() => {
-    loadProfile();
-  }, [user.id]);
-
-  async function loadProfile() {
+  const loadProfile = useCallback(async () => {
     const { data } = await supabase
       .from("couriers")
       .select("vehicle_type, vehicle_plate, total_deliveries, total_earnings, status, profiles (full_name, phone)")
@@ -34,7 +30,9 @@ export default function ProfileScreen({ user, onBack, onSignOut }: ProfileScreen
       .single();
 
     if (data) {
-      const profiles = data.profiles as any;
+      // profiles vem como array por causa do join
+      const profilesArr = data.profiles as Array<{ full_name?: string; phone?: string }> | null;
+      const profiles = profilesArr?.[0] ?? null;
       setProfile({
         full_name: profiles?.full_name ?? null,
         phone: profiles?.phone ?? null,
@@ -45,7 +43,11 @@ export default function ProfileScreen({ user, onBack, onSignOut }: ProfileScreen
         status: data.status ?? "offline",
       });
     }
-  }
+  }, [user.id]);
+
+  useEffect(() => {
+    loadProfile();
+  }, [loadProfile]);
 
   return (
     <ScrollView style={styles.container}>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { View, Text, TouchableOpacity, FlatList, StyleSheet, Alert, Linking, Image } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { useLocation } from "../hooks/useLocation";
@@ -23,7 +23,8 @@ interface DashboardScreenProps {
   onSignOut: () => void;
 }
 
-export default function DashboardScreen({ user, onProfile, onSignOut }: DashboardScreenProps) {
+export default function DashboardScreen({ user, onProfile, onSignOut: _onSignOut }: DashboardScreenProps) {
+  // _onSignOut intencionalmente nao usado nesta tela — logout via App.tsx
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
   const [pushToken, setPushToken] = useState<string | null>(null);
@@ -38,7 +39,7 @@ export default function DashboardScreen({ user, onProfile, onSignOut }: Dashboar
       .single()
       .then(({ data }) => {
         setPushToken(data?.fcm_token ?? null);
-        console.log("[Debug] courier status:", data?.status, "token:", data?.fcm_token ? "OK" : "FALTANDO");
+        console.warn("[Debug] courier status:", data?.status, "token:", data?.fcm_token ? "OK" : "FALTANDO");
       });
   }, [user.id]);
 
@@ -49,13 +50,22 @@ export default function DashboardScreen({ user, onProfile, onSignOut }: Dashboar
     );
 
     if (hasActiveOrder && !tracking) {
-      console.log("[AutoGPS] Pedido ativo detectado — iniciando rastreamento");
+      console.warn("[AutoGPS] Pedido ativo detectado — iniciando rastreamento");
       startTracking();
     } else if (!hasActiveOrder && tracking) {
-      console.log("[AutoGPS] Sem pedidos ativos — parando rastreamento");
+      console.warn("[AutoGPS] Sem pedidos ativos — parando rastreamento");
       stopTracking();
     }
   }, [orders, tracking, startTracking, stopTracking]);
+
+  const loadOrders = useCallback(async () => {
+    const { data } = await supabase
+      .from("orders")
+      .select("id, status, customer_name, customer_phone, pickup_address, delivery_address, delivery_fee, proof_image_url, proof_uploaded_at")
+      .eq("courier_id", user.id)
+      .order("created_at", { ascending: false });
+    setOrders(data ?? []);
+  }, [user.id]);
 
   useEffect(() => {
     loadOrders();
@@ -79,16 +89,7 @@ export default function DashboardScreen({ user, onProfile, onSignOut }: Dashboar
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user.id]);
-
-  async function loadOrders() {
-    const { data } = await supabase
-      .from("orders")
-      .select("id, status, customer_name, customer_phone, pickup_address, delivery_address, delivery_fee, proof_image_url, proof_uploaded_at")
-      .eq("courier_id", user.id)
-      .order("created_at", { ascending: false });
-    setOrders(data ?? []);
-  }
+  }, [user.id, loadOrders]);
 
   async function updateOrderStatus(orderId: string, status: string) {
     setLoading(true);
@@ -158,13 +159,13 @@ export default function DashboardScreen({ user, onProfile, onSignOut }: Dashboar
     setLoading(true);
 
     // Upload para o Supabase Storage
-    const { data: uploadData, error: uploadError } = await supabase.storage
+    const { error: uploadError } = await supabase.storage
       .from("delivery-proofs")
       .upload(fileName, {
         uri: asset.uri,
         type: "image/jpeg",
         name: fileName,
-      } as any, {
+      } as unknown as File, {
         contentType: "image/jpeg",
       });
 
