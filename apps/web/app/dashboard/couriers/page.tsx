@@ -32,7 +32,7 @@ export default function CouriersPage() {
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "couriers" },
         (payload) => {
-          console.log("[Couriers Realtime] UPDATE:", payload.new);
+          console.warn("[Couriers Realtime] UPDATE:", payload.new);
           const updated = payload.new as CourierData;
           setCouriers((prev) =>
             prev.map((c) => (c.id === updated.id ? { ...c, ...updated } : c))
@@ -40,7 +40,7 @@ export default function CouriersPage() {
         }
       )
       .subscribe((status) => {
-        console.log("[Couriers Realtime] status:", status);
+        console.warn("[Couriers Realtime] status:", status);
       });
 
     return () => {

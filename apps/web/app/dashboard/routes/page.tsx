@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { getRoutes, createRoute, endRoute, getVehicleTypes } from "../../actions/routes";
+import { getRoutes, endRoute, getVehicleTypes } from "../../actions/routes";
 import { listCouriers } from "../../actions/couriers";
 import type { RouteWithOrders } from "../../actions/routes";
 import type { CourierData } from "../../actions/couriers";
@@ -45,7 +45,6 @@ export default function RoutesPage() {
   const [couriers, setCouriers] = useState<CourierData[]>([]);
   const [vehicleTypes, setVehicleTypes] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isPending, startTransition] = useTransition();
 
   const [filters, setFilters] = useState({
     courierId: "",
@@ -55,7 +54,7 @@ export default function RoutesPage() {
     toDate: "",
   });
 
-  async function loadData() {
+  const loadData = useCallback(async () => {
     setLoading(true);
     const [routesResult, couriersResult, vehicleResult] = await Promise.all([
       getRoutes({
@@ -74,16 +73,16 @@ export default function RoutesPage() {
     if (vehicleResult.ok) setVehicleTypes(vehicleResult.data);
 
     setLoading(false);
-  }
+  }, [filters.courierId, filters.vehicleType, filters.status, filters.fromDate, filters.toDate]);
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [loadData]);
 
   useEffect(() => {
     const timeout = setTimeout(() => loadData(), 300);
     return () => clearTimeout(timeout);
-  }, [filters.courierId, filters.vehicleType, filters.status, filters.fromDate, filters.toDate]);
+  }, [loadData, filters.courierId, filters.vehicleType, filters.status, filters.fromDate, filters.toDate]);
 
   const activeRoutes = routes.filter((r) => r.status === "active");
   const completedRoutes = routes.filter((r) => r.status === "completed");
@@ -206,7 +205,7 @@ function RouteCard({
   onEnd: () => Promise<void> | void;
 }) {
   const completedCount = route.orders.filter((o) => o.status === "delivered").length;
-  const cancelledCount = route.orders.filter((o) => o.status === "cancelled").length;
+  // const cancelledCount = route.orders.filter((o) => o.status === "cancelled").length;
   const totalValue = route.orders.reduce((sum, o) => sum + (o.order_value ?? 0), 0);
   const totalFee = route.orders.reduce((sum, o) => sum + (o.delivery_fee ?? 0), 0);
 

@@ -120,6 +120,7 @@ export async function getRoutes(filters?: RouteFilters): Promise<Result<RouteWit
   }
 
   // Busca dados dos couriers separadamente para evitar problemas de join
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const courierIds = [...new Set((routesData ?? []).map((r: any) => r.courier_id).filter(Boolean))];
   let courierMap = new Map<string, { full_name: string | null; email: string | null; vehicle_type: string | null; vehicle_plate: string | null }>();
 
@@ -134,6 +135,7 @@ export async function getRoutes(filters?: RouteFilters): Promise<Result<RouteWit
       .select("id, full_name, email")
       .in("id", courierIds);
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const profilesMap = new Map((profilesData ?? []).map((p: any) => [p.id, p]));
 
     for (const c of couriersData ?? []) {
@@ -147,6 +149,7 @@ export async function getRoutes(filters?: RouteFilters): Promise<Result<RouteWit
     }
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const routes: RouteWithOrders[] = (routesData ?? []).map((r: any) => {
     const courier = courierMap.get(r.courier_id);
     return {
@@ -292,6 +295,7 @@ export async function getVehicleTypes(): Promise<Result<string[]>> {
     return err(error.message, "routes/vehicle-types-failed");
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const types = [...new Set((data ?? []).map((c: any) => c.vehicle_type).filter(Boolean))];
   return ok(types);
 }

@@ -30,7 +30,7 @@ export interface TrackOrderData {
     eventType: string;
     createdAt: string;
     actorRole: string;
-    metadata: any;
+    metadata: unknown;
   }[];
 }
 
@@ -138,6 +138,7 @@ export async function trackOrder(orderId: string): Promise<Result<TrackOrderData
             ),
           )
         : null,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     events: (events ?? []).map((e: any) => ({
       eventType: e.event_type,
       createdAt: e.created_at,

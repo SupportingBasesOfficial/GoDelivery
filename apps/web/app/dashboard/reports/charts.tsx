@@ -28,17 +28,6 @@ const STATUS_COLORS: Record<string, string> = {
   cancelled: "#6b7280",
 };
 
-const STATUS_LABELS: Record<string, string> = {
-  draft: "Rascunho",
-  pending_courier: "Aguardando motoboy",
-  accepted: "Aceito",
-  collected: "Coletado",
-  in_transit: "Em rota",
-  delivered: "Entregue",
-  rejected: "Recusado",
-  cancelled: "Cancelado",
-};
-
 interface ChartsProps {
   data: ReportsData;
 }
@@ -116,7 +105,7 @@ export function RevenueDailyChart({ data }: ChartsProps) {
           />
           <Tooltip
             contentStyle={{ borderRadius: 8, border: "1px solid #e5e7eb", fontSize: 13 }}
-            formatter={(value: any) => [formatCurrency(Number(value)), ""]}
+            formatter={(value: unknown) => [formatCurrency(Number(value)), ""]}
           />
           <Legend wrapperStyle={{ fontSize: 13 }} />
           <Bar dataKey="receita" fill="#8b5cf6" radius={[4, 4, 0, 0]} />

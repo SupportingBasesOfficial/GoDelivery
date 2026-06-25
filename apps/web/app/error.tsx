@@ -16,7 +16,6 @@ export default function GlobalErrorBoundary({
 }) {
   useEffect(() => {
     Sentry.captureException(error);
-    // eslint-disable-next-line no-console
     console.error("[GlobalErrorBoundary]", error);
   }, [error]);
 

@@ -93,7 +93,7 @@ export default function TrackPage({ params }: { params: Promise<{ id: string }> 
   ];
 
   const currentStepIndex = progressSteps.findIndex((s) => s.key === order.status);
-  const isCompleted = order.status === "delivered";
+  // const isCompleted = order.status === "delivered";
   const isCancelled = order.status === "cancelled" || order.status === "rejected";
 
   return (
@@ -151,7 +151,6 @@ export default function TrackPage({ params }: { params: Promise<{ id: string }> 
                 rel="noopener noreferrer"
                 className="block overflow-hidden rounded-lg border"
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={order.proofImageUrl}
                   alt="Comprovante de entrega"

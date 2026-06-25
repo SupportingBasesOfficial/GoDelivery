@@ -40,7 +40,7 @@ export async function sendPushNotification(
     return err("Token nao encontrado", "push/token-not-found");
   }
 
-  console.log("[Push] Enviando para token:", courier.fcm_token.substring(0, 20) + "...");
+  console.warn("[Push] Enviando para token:", courier.fcm_token.substring(0, 20) + "...");
 
   const message: PushMessage = {
     to: courier.fcm_token,
@@ -66,7 +66,7 @@ export async function sendPushNotification(
   }
 
   const result = await response.json();
-  console.log("[Push] Expo response:", JSON.stringify(result));
+  console.warn("[Push] Expo response:", JSON.stringify(result));
 
   return ok(undefined);
 }

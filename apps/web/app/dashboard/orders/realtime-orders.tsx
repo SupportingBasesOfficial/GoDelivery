@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { createClient } from "@repo/supabase/client";
 import OrderActions from "./order-actions";
 import type { Order } from "../../actions/orders";
@@ -44,7 +43,7 @@ export default function RealtimeOrders({ initialOrders, couriers: initialCourier
   const [statusFilter, setStatusFilter] = useState<string>("");
 
   useEffect(() => {
-    console.log("[RealtimeOrders] useEffect EXECUTADO");
+    console.warn("[RealtimeOrders] useEffect EXECUTADO");
 
     const ordersChannel = supabase
       .channel("orders_changes")
@@ -52,7 +51,7 @@ export default function RealtimeOrders({ initialOrders, couriers: initialCourier
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "orders" },
         (payload) => {
-          console.log("[Realtime] Order UPDATE:", payload.new);
+          console.warn("[Realtime] Order UPDATE:", payload.new);
           const updated = payload.new as Order;
           setOrders((prev) =>
             prev.map((o) => (o.id === updated.id ? { ...o, ...updated } : o))
@@ -63,13 +62,13 @@ export default function RealtimeOrders({ initialOrders, couriers: initialCourier
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "orders" },
         (payload) => {
-          console.log("[Realtime] Order INSERT:", payload.new);
+          console.warn("[Realtime] Order INSERT:", payload.new);
           const inserted = payload.new as Order;
           setOrders((prev) => [inserted, ...prev]);
         }
       )
       .subscribe((status) => {
-        console.log("[Realtime] Orders channel status:", status);
+        console.warn("[Realtime] Orders channel status:", status);
       });
 
     const couriersChannel = supabase
@@ -78,7 +77,7 @@ export default function RealtimeOrders({ initialOrders, couriers: initialCourier
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "couriers" },
         (payload) => {
-          console.log("[Realtime] Courier UPDATE:", payload.new);
+          console.warn("[Realtime] Courier UPDATE:", payload.new);
           const updated = payload.new as { id: string; status: string };
           setCouriers((prev) =>
             prev.map((c) => (c.id === updated.id ? { ...c, status: updated.status } : c))
@@ -86,12 +85,12 @@ export default function RealtimeOrders({ initialOrders, couriers: initialCourier
         }
       )
       .subscribe((status) => {
-        console.log("[Realtime] Couriers channel status:", status);
+        console.warn("[Realtime] Couriers channel status:", status);
         setConnectionStatus(status === "SUBSCRIBED" ? "conectado" : status);
       });
 
     return () => {
-      console.log("[Realtime] Removendo channels");
+      console.warn("[Realtime] Removendo channels");
       supabase.removeChannel(ordersChannel);
       supabase.removeChannel(couriersChannel);
     };

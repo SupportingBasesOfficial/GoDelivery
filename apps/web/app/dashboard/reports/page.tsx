@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { getReports } from "../../actions/reports";
 import type { ReportsData } from "../../actions/reports";
 import {
@@ -29,7 +29,7 @@ export default function ReportsPage() {
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     const result = await getReports(
       fromDate || undefined,
@@ -41,11 +41,11 @@ export default function ReportsPage() {
       setError(result.error?.message ?? "Erro ao carregar relatórios");
     }
     setLoading(false);
-  }
+  }, [fromDate, toDate]);
 
   useEffect(() => {
     load();
-  }, []);
+  }, [load]);
 
   const overall = data?.overall;
 

@@ -98,6 +98,7 @@ export async function getReports(fromDate?: string, toDate?: string): Promise<Re
     return err(ordersError.message, "reports/fetch-failed");
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const list = (orders ?? []) as any[];
 
   // Métricas gerais

@@ -1,5 +1,5 @@
 import { updateSession } from "@repo/supabase/middleware";
-import { type NextRequest, NextResponse } from "next/server";
+import { type NextRequest } from "next/server";
 
 /**
  * Middleware do Next.js.
