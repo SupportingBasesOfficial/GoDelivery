@@ -73,7 +73,7 @@ export function useLocation(courierId: string | null) {
     if (!courierId) return;
 
     const { data: sessionData } = await supabase.auth.getSession();
-    console.log("[GPS] Sessao:", sessionData.session ? "ativa" : "inativa", "userId:", sessionData.session?.user?.id);
+    console.warn("[GPS] Sessao:", sessionData.session ? "ativa" : "inativa", "userId:", sessionData.session?.user?.id);
 
     const { status: foregroundStatus } = await Location.requestForegroundPermissionsAsync();
     if (foregroundStatus !== "granted") {
