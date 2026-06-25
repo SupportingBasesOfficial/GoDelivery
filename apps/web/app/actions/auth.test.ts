@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { signUpBusinessOwner, signIn, signOut, getCurrentUser } from "./auth";
+import { signUpBusinessOwner, signIn, getCurrentUser } from "./auth";
 
 // Mock do rate-limit
 vi.mock("../lib/rate-limit", () => ({
@@ -46,6 +46,7 @@ vi.mock("next/cache", () => ({
 vi.mock("next/navigation", () => ({
   redirect: vi.fn(() => {
     const error = new Error("NEXT_REDIRECT");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (error as any).digest = "NEXT_REDIRECT";
     throw error;
   }),

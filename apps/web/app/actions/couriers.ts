@@ -62,6 +62,7 @@ export async function listCouriers(): Promise<Result<CourierData[]>> {
     return err(couriersError.message, "couriers/fetch-failed");
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const formatted = (couriers ?? []).map((c: any) => ({
     id: c.id,
     fullName: c.profiles?.full_name ?? "",
@@ -217,6 +218,7 @@ export async function getCouriersWithLocation(): Promise<Result<CourierWithLocat
     return err(couriersError.message, "couriers/fetch-failed");
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const formatted = (couriers ?? []).map((c: any) => ({
     id: c.id,
     fullName: c.profiles?.full_name ?? "",
