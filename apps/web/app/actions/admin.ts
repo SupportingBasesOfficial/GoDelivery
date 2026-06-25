@@ -2,6 +2,7 @@
 
 import { createAdminClient, ok, err } from "@repo/supabase";
 import type { Result } from "@repo/supabase";
+import { validate, uuidSchema } from "./schemas";
 
 // ─── Platform Settings ─────────────────────────────────────────────
 
@@ -32,6 +33,11 @@ export async function updatePlatformSettings(
   id: string,
   data: Partial<PlatformSettings>,
 ): Promise<Result<void>> {
+  const validation = validate(uuidSchema, id);
+  if (!validation.success) {
+    return err("ID inválido", "validation/invalid-input");
+  }
+
   const admin = createAdminClient();
   const { error } = await admin.from("platform_settings").update(data).eq("id", id);
 
@@ -72,6 +78,11 @@ export async function toggleTenantActive(
   tenantId: string,
   isActive: boolean,
 ): Promise<Result<void>> {
+  const validation = validate(uuidSchema, tenantId);
+  if (!validation.success) {
+    return err("ID do tenant inválido", "validation/invalid-input");
+  }
+
   const admin = createAdminClient();
   const { error } = await admin.from("tenants").update({ is_active: isActive }).eq("id", tenantId);
 
@@ -173,6 +184,13 @@ export interface StatusHistoryEntry {
 }
 
 export async function getOrderStatusHistory(orderId?: string): Promise<Result<StatusHistoryEntry[]>> {
+  if (orderId) {
+    const validation = validate(uuidSchema, orderId);
+    if (!validation.success) {
+      return err("ID do pedido inválido", "validation/invalid-input");
+    }
+  }
+
   const admin = createAdminClient();
   let query = admin
     .from("order_status_history")

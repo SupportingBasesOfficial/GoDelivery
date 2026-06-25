@@ -2,6 +2,7 @@
 
 import { createServerClient, ok, err } from "@repo/supabase";
 import type { Result, Json } from "@repo/supabase";
+import { validate, tenantSettingsSchema } from "./schemas";
 
 export interface FeeRange {
   minKm: number;
@@ -57,6 +58,11 @@ export async function getTenantSettings(): Promise<Result<TenantSettingsData>> {
 export async function updateTenantSettings(
   data: TenantSettingsData,
 ): Promise<Result<void>> {
+  const validation = validate(tenantSettingsSchema, data);
+  if (!validation.success) {
+    return err(validation.errors.join("; "), "validation/invalid-input");
+  }
+
   const supabase = await createServerClient();
 
   const {

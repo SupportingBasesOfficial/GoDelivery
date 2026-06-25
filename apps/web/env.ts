@@ -39,5 +39,5 @@ export const env = createEnv({
    * Desabilita validação em runtime se SKIP_ENV_VALIDATION=true
    * Útil para CI/CD onde variáveis podem ser placeholder
    */
-  skipValidation: !!process.env.SKIP_ENV_VALIDATION,
+  skipValidation: process.env.SKIP_ENV_VALIDATION === "true",
 });

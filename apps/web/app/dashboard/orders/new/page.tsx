@@ -9,10 +9,12 @@ export default function NewOrderPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  async function handleSubmit(formData: FormData) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
     setLoading(true);
     setError(null);
 
+    const formData = new FormData(e.currentTarget);
     const orderValue = parseFloat(formData.get("orderValue") as string) || 0;
     const deliveryFee = parseFloat(formData.get("deliveryFee") as string) || 0;
 
@@ -43,7 +45,7 @@ export default function NewOrderPage() {
       <h2 className="mb-6 text-2xl font-bold text-gray-900">Novo pedido</h2>
 
       <form
-        action={handleSubmit}
+        onSubmit={handleSubmit}
         className="space-y-4 rounded-xl bg-white p-6 shadow"
       >
         <div>
@@ -121,9 +123,8 @@ export default function NewOrderPage() {
             <input
               id="orderValue"
               name="orderValue"
-              type="number"
-              step="0.01"
-              min="0"
+              type="text"
+              inputMode="decimal"
               defaultValue="0"
               className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
             />
@@ -139,9 +140,8 @@ export default function NewOrderPage() {
             <input
               id="deliveryFee"
               name="deliveryFee"
-              type="number"
-              step="0.01"
-              min="0"
+              type="text"
+              inputMode="decimal"
               defaultValue="5"
               className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
             />

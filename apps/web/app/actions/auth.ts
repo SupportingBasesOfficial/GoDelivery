@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createServerClient, createAdminClient, ok, err } from "@repo/supabase";
 import type { Result } from "@repo/supabase";
 import { rateLimit } from "../lib/rate-limit";
+import { validate, signUpSchema, signInSchema } from "./schemas";
 
 interface SignUpData {
   email: string;
@@ -35,6 +36,11 @@ interface AuthUser {
 export async function signUpBusinessOwner(
   data: SignUpData,
 ): Promise<Result<{ userId: string }>> {
+  const validation = validate(signUpSchema, data);
+  if (!validation.success) {
+    return err(validation.errors.join("; "), "validation/invalid-input");
+  }
+
   const limit = rateLimit(`signup:${data.email}`, 3, 60_000);
   if (!limit.allowed) {
     return err("Muitas tentativas. Tente novamente em alguns minutos.", "rate-limit/exceeded");
@@ -131,6 +137,11 @@ export async function signUpBusinessOwner(
  * Login com email e senha.
  */
 export async function signIn(data: SignInData): Promise<Result<void>> {
+  const validation = validate(signInSchema, data);
+  if (!validation.success) {
+    return err(validation.errors.join("; "), "validation/invalid-input");
+  }
+
   const limit = rateLimit(`login:${data.email}`, 5, 60_000);
   if (!limit.allowed) {
     return err("Muitas tentativas. Tente novamente em alguns minutos.", "rate-limit/exceeded");
@@ -138,7 +149,7 @@ export async function signIn(data: SignInData): Promise<Result<void>> {
 
   const supabase = await createServerClient();
 
-  const { error } = await supabase.auth.signInWithPassword({
+  const { data: signInData, error } = await supabase.auth.signInWithPassword({
     email: data.email,
     password: data.password,
   });
@@ -147,7 +158,6 @@ export async function signIn(data: SignInData): Promise<Result<void>> {
     return err(error.message, error.code);
   }
 
-  revalidatePath("/", "layout");
   redirect("/dashboard");
 }
 
@@ -180,7 +190,7 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
     .from("profiles")
     .select("role, tenant_id, full_name")
     .eq("id", user.id)
-    .single();
+    .maybeSingle();
 
   if (profileError || !profile) {
     return null;

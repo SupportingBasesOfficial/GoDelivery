@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { View, Text, TouchableOpacity, FlatList, StyleSheet, Alert } from "react-native";
+import { View, Text, TouchableOpacity, FlatList, StyleSheet, Alert, Linking, Image } from "react-native";
+import * as ImagePicker from "expo-image-picker";
 import { useLocation } from "../hooks/useLocation";
 import { supabase } from "../lib/supabase";
 import type { AuthUser } from "../hooks/useAuth";
@@ -12,28 +13,78 @@ interface Order {
   pickup_address: string;
   delivery_address: string;
   delivery_fee: number;
+  proof_image_url: string | null;
+  proof_uploaded_at: string | null;
 }
 
 interface DashboardScreenProps {
   user: AuthUser;
+  onProfile: () => void;
   onSignOut: () => void;
 }
 
-export default function DashboardScreen({ user, onSignOut }: DashboardScreenProps) {
+export default function DashboardScreen({ user, onProfile, onSignOut }: DashboardScreenProps) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
+  const [pushToken, setPushToken] = useState<string | null>(null);
   const { location, tracking, startTracking, stopTracking } = useLocation(user.id);
 
   useEffect(() => {
+    // Busca token push salvo no banco para debug
+    supabase
+      .from("couriers")
+      .select("fcm_token, status")
+      .eq("id", user.id)
+      .single()
+      .then(({ data }) => {
+        setPushToken(data?.fcm_token ?? null);
+        console.log("[Debug] courier status:", data?.status, "token:", data?.fcm_token ? "OK" : "FALTANDO");
+      });
+  }, [user.id]);
+
+  // GPS automatico: liga com pedido ativo, desliga quando nao ha
+  useEffect(() => {
+    const hasActiveOrder = orders.some(
+      (o) => o.status === "accepted" || o.status === "collected" || o.status === "in_transit"
+    );
+
+    if (hasActiveOrder && !tracking) {
+      console.log("[AutoGPS] Pedido ativo detectado — iniciando rastreamento");
+      startTracking();
+    } else if (!hasActiveOrder && tracking) {
+      console.log("[AutoGPS] Sem pedidos ativos — parando rastreamento");
+      stopTracking();
+    }
+  }, [orders, tracking, startTracking, stopTracking]);
+
+  useEffect(() => {
     loadOrders();
-    const interval = setInterval(loadOrders, 30000); // Atualiza a cada 30s
-    return () => clearInterval(interval);
+
+    const channel = supabase
+      .channel("orders_courier_changes")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "orders",
+          filter: `courier_id=eq.${user.id}`,
+        },
+        () => {
+          loadOrders();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [user.id]);
 
   async function loadOrders() {
     const { data } = await supabase
       .from("orders")
-      .select("id, status, customer_name, customer_phone, pickup_address, delivery_address, delivery_fee")
+      .select("id, status, customer_name, customer_phone, pickup_address, delivery_address, delivery_fee, proof_image_url, proof_uploaded_at")
       .eq("courier_id", user.id)
       .order("created_at", { ascending: false });
     setOrders(data ?? []);
@@ -41,7 +92,17 @@ export default function DashboardScreen({ user, onSignOut }: DashboardScreenProp
 
   async function updateOrderStatus(orderId: string, status: string) {
     setLoading(true);
-    const { error } = await supabase.from("orders").update({ status }).eq("id", orderId);
+
+    const updateData: Record<string, string | null> = { status };
+    const now = new Date().toISOString();
+
+    if (status === "accepted") updateData.accepted_at = now;
+    if (status === "collected") updateData.collected_at = now;
+    if (status === "in_transit") updateData.in_transit_at = now;
+    if (status === "delivered") updateData.delivered_at = now;
+    if (status === "rejected") updateData.rejected_at = now;
+
+    const { error } = await supabase.from("orders").update(updateData).eq("id", orderId);
     if (error) {
       Alert.alert("Erro", error.message);
     } else {
@@ -51,10 +112,13 @@ export default function DashboardScreen({ user, onSignOut }: DashboardScreenProp
   }
 
   const statusLabels: Record<string, string> = {
+    pending_courier: "Novo pedido — Aceitar?",
     accepted: "Aceito — Coletar pedido",
     collected: "Coletado — Em rota",
     in_transit: "Em rota — Entregar",
     delivered: "Entregue",
+    rejected: "Recusado",
+    cancelled: "Cancelado",
   };
 
   const nextStatus: Record<string, string> = {
@@ -63,12 +127,82 @@ export default function DashboardScreen({ user, onSignOut }: DashboardScreenProp
     in_transit: "delivered",
   };
 
+  function openNavigation(address: string) {
+    const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+    Linking.openURL(url).catch(() => {
+      Alert.alert("Erro", "Não foi possível abrir o mapa");
+    });
+  }
+
+  async function uploadProof(orderId: string) {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert("Permissão negada", "Precisamos acessar suas fotos para enviar o comprovante.");
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.7,
+    });
+
+    if (result.canceled || !result.assets || result.assets.length === 0) {
+      return;
+    }
+
+    const asset = result.assets[0];
+    const fileName = `${orderId}/${Date.now()}.jpg`;
+
+    setLoading(true);
+
+    // Upload para o Supabase Storage
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from("delivery-proofs")
+      .upload(fileName, {
+        uri: asset.uri,
+        type: "image/jpeg",
+        name: fileName,
+      } as any, {
+        contentType: "image/jpeg",
+      });
+
+    if (uploadError) {
+      Alert.alert("Erro no upload", uploadError.message);
+      setLoading(false);
+      return;
+    }
+
+    // Obtem URL publica
+    const { data: urlData } = supabase.storage.from("delivery-proofs").getPublicUrl(fileName);
+    const publicUrl = urlData?.publicUrl ?? "";
+
+    // Atualiza o pedido
+    const { error: updateError } = await supabase
+      .from("orders")
+      .update({
+        proof_image_url: publicUrl,
+        proof_uploaded_at: new Date().toISOString(),
+      })
+      .eq("id", orderId);
+
+    if (updateError) {
+      Alert.alert("Erro ao atualizar pedido", updateError.message);
+    } else {
+      Alert.alert("Sucesso", "Comprovante enviado!");
+      await loadOrders();
+    }
+
+    setLoading(false);
+  }
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>GoDelivery Courier</Text>
-        <TouchableOpacity onPress={onSignOut}>
-          <Text style={styles.logout}>Sair</Text>
+        <TouchableOpacity onPress={onProfile}>
+          <Text style={styles.profile}>👤 Perfil</Text>
         </TouchableOpacity>
       </View>
 
@@ -83,9 +217,16 @@ export default function DashboardScreen({ user, onSignOut }: DashboardScreenProp
           onPress={tracking ? stopTracking : startTracking}
         >
           <Text style={styles.trackButtonText}>
-            {tracking ? "Parar GPS" : "Iniciar GPS"}
+            {tracking ? "🔴 GPS ativo (auto)" : "⚪ GPS inativo"}
           </Text>
         </TouchableOpacity>
+      </View>
+
+      {/* Debug Panel */}
+      <View style={styles.debugPanel}>
+        <Text style={styles.debugText}>
+          Auto-GPS: {tracking ? "Rastreando" : "Aguardando pedido"} | Push: {pushToken ? "OK" : "Faltando"}
+        </Text>
       </View>
 
       <Text style={styles.sectionTitle}>Pedidos atribuídos</Text>
@@ -102,7 +243,26 @@ export default function DashboardScreen({ user, onSignOut }: DashboardScreenProp
             <Text style={styles.fee}>Taxa: R$ {item.delivery_fee.toFixed(2)}</Text>
             <Text style={styles.status}>{statusLabels[item.status] ?? item.status}</Text>
 
-            {item.status !== "delivered" && item.status !== "rejected" && (
+            {item.status === "pending_courier" && (
+              <View style={styles.actionRow}>
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.acceptButton]}
+                  onPress={() => updateOrderStatus(item.id, "accepted")}
+                  disabled={loading}
+                >
+                  <Text style={styles.actionButtonText}>Aceitar pedido</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.rejectButton]}
+                  onPress={() => updateOrderStatus(item.id, "rejected")}
+                  disabled={loading}
+                >
+                  <Text style={styles.actionButtonText}>Recusar</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {(item.status === "accepted" || item.status === "collected" || item.status === "in_transit") && (
               <TouchableOpacity
                 style={styles.actionButton}
                 onPress={() => updateOrderStatus(item.id, nextStatus[item.status] ?? item.status)}
@@ -113,11 +273,52 @@ export default function DashboardScreen({ user, onSignOut }: DashboardScreenProp
                     ? "Confirmar coleta"
                     : item.status === "collected"
                       ? "Iniciar entrega"
-                      : item.status === "in_transit"
-                        ? "Confirmar entrega"
-                        : "Atualizar"}
+                      : "Confirmar entrega"}
                 </Text>
               </TouchableOpacity>
+            )}
+
+            {(item.status === "accepted" || item.status === "collected" || item.status === "in_transit") && (
+              <View style={styles.navRow}>
+                <TouchableOpacity
+                  style={styles.navButton}
+                  onPress={() => openNavigation(item.pickup_address)}
+                >
+                  <Text style={styles.navButtonText}>🗺️ Ir para coleta</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.navButton}
+                  onPress={() => openNavigation(item.delivery_address)}
+                >
+                  <Text style={styles.navButtonText}>🗺️ Ir para entrega</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* Upload de comprovante */}
+            {item.status === "in_transit" && (
+              <TouchableOpacity
+                style={[styles.actionButton, { backgroundColor: "#8b5cf6" }]}
+                onPress={() => uploadProof(item.id)}
+                disabled={loading}
+              >
+                <Text style={styles.actionButtonText}>
+                  📷 Enviar comprovante de entrega
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            {item.proof_image_url && (
+              <View style={{ marginTop: 8 }}>
+                <Text style={{ fontSize: 12, color: "#6b7280", marginBottom: 4 }}>
+                  Comprovante enviado:
+                </Text>
+                <Image
+                  source={{ uri: item.proof_image_url }}
+                  style={{ width: "100%", height: 200, borderRadius: 8 }}
+                  resizeMode="cover"
+                />
+              </View>
             )}
           </View>
         )}
@@ -146,8 +347,8 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: "#111",
   },
-  logout: {
-    color: "#ef4444",
+  profile: {
+    color: "#3b82f6",
     fontWeight: "600",
   },
   locationBar: {
@@ -176,6 +377,17 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 12,
     fontWeight: "600",
+  },
+  debugPanel: {
+    backgroundColor: "#f3f4f6",
+    padding: 8,
+    borderRadius: 6,
+    marginBottom: 8,
+  },
+  debugText: {
+    fontSize: 11,
+    color: "#6b7280",
+    fontFamily: "monospace",
   },
   sectionTitle: {
     fontSize: 16,
@@ -221,12 +433,23 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontStyle: "italic",
   },
-  actionButton: {
+  actionRow: {
+    flexDirection: "row",
+    gap: 8,
     marginTop: 10,
+  },
+  actionButton: {
+    flex: 1,
     backgroundColor: "#10b981",
     borderRadius: 6,
     paddingVertical: 10,
     alignItems: "center",
+  },
+  acceptButton: {
+    backgroundColor: "#10b981",
+  },
+  rejectButton: {
+    backgroundColor: "#ef4444",
   },
   actionButtonText: {
     color: "#fff",
@@ -237,5 +460,24 @@ const styles = StyleSheet.create({
     textAlign: "center",
     color: "#9ca3af",
     marginTop: 40,
+  },
+  navRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 8,
+  },
+  navButton: {
+    flex: 1,
+    backgroundColor: "#f3f4f6",
+    borderRadius: 6,
+    paddingVertical: 8,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+  },
+  navButtonText: {
+    color: "#374151",
+    fontWeight: "600",
+    fontSize: 12,
   },
 });

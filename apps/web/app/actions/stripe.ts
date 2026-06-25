@@ -3,11 +3,16 @@
 import Stripe from "stripe";
 import { createServerClient, createAdminClient, ok, err } from "@repo/supabase";
 import type { Result } from "@repo/supabase";
-import { env } from "../../env";
+import { rateLimit } from "../lib/rate-limit";
+import { validate, orderIdSchema } from "./schemas";
 
-const stripe = new Stripe(env.STRIPE_SECRET_KEY, {
-  apiVersion: "2024-09-30.acacia",
-});
+function getStripe(): Stripe {
+  const key = process.env.STRIPE_SECRET_KEY;
+  if (!key) {
+    throw new Error("STRIPE_SECRET_KEY não configurada");
+  }
+  return new Stripe(key, { apiVersion: "2024-09-30.acacia" });
+}
 
 /**
  * Cria um SetupIntent para o empresário salvar o cartão.
@@ -42,7 +47,7 @@ export async function createSetupIntent(): Promise<Result<{ clientSecret: string
 
   // Cria customer no Stripe se não existir
   if (!customerId) {
-    const customer = await stripe.customers.create({
+    const customer = await getStripe().customers.create({
       name: tenant.name,
       email: tenant.email,
       metadata: { tenant_id: tenant.id },
@@ -54,7 +59,7 @@ export async function createSetupIntent(): Promise<Result<{ clientSecret: string
     await admin.from("tenants").update({ stripe_customer_id: customerId }).eq("id", tenant.id);
   }
 
-  const setupIntent = await stripe.setupIntents.create({
+  const setupIntent = await getStripe().setupIntents.create({
     customer: customerId,
     payment_method_types: ["card"],
     metadata: { tenant_id: tenant.id },
@@ -68,6 +73,16 @@ export async function createSetupIntent(): Promise<Result<{ clientSecret: string
  * Chamado pelo webhook quando pedido é marcado como delivered.
  */
 export async function chargeOrder(orderId: string): Promise<Result<{ paymentIntentId: string }>> {
+  const validation = validate(orderIdSchema, { orderId });
+  if (!validation.success) {
+    return err(validation.errors.join("; "), "validation/invalid-input");
+  }
+
+  const limit = rateLimit(`charge-order:${orderId}`, 3, 60_000);
+  if (!limit.allowed) {
+    return err("Muitas tentativas. Tente novamente em alguns minutos.", "rate-limit/exceeded");
+  }
+
   const admin = createAdminClient();
 
   const { data: order } = await admin
@@ -91,7 +106,7 @@ export async function chargeOrder(orderId: string): Promise<Result<{ paymentInte
   }
 
   // Busca payment methods do customer
-  const paymentMethods = await stripe.paymentMethods.list({
+  const paymentMethods = await getStripe().paymentMethods.list({
     customer: tenant.stripe_customer_id,
     type: "card",
   });
@@ -102,7 +117,7 @@ export async function chargeOrder(orderId: string): Promise<Result<{ paymentInte
 
   const amount = Math.round(order.delivery_fee * 100); // centavos
 
-  const paymentIntent = await stripe.paymentIntents.create({
+  const paymentIntent = await getStripe().paymentIntents.create({
     amount,
     currency: "brl",
     customer: tenant.stripe_customer_id,

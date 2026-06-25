@@ -21,7 +21,9 @@ export default function LoginPage() {
     if (!result.ok) {
       setError(result.error?.message ?? "Erro ao entrar");
       setLoading(false);
+      return;
     }
+
     // redirect é tratado no server action
   }
 
@@ -36,6 +38,7 @@ export default function LoginPage() {
         <form
           onSubmit={handleSubmit}
           className="space-y-4 rounded-xl bg-white p-6 shadow"
+          aria-label="Formulário de login"
         >
           <div>
             <label
@@ -49,7 +52,9 @@ export default function LoginPage() {
               name="email"
               type="email"
               required
-              className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+              aria-required="true"
+              aria-invalid={!!error}
+              className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
             />
           </div>
 
@@ -66,12 +71,14 @@ export default function LoginPage() {
               type="password"
               required
               minLength={6}
-              className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+              aria-required="true"
+              aria-invalid={!!error}
+              className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
             />
           </div>
 
           {error && (
-            <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+            <div role="alert" aria-live="assertive" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">
               {error}
             </div>
           )}
@@ -79,7 +86,8 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-lg bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            aria-busy={loading}
+            className="w-full rounded-lg bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
           >
             {loading ? "Entrando..." : "Entrar"}
           </button>

@@ -12,16 +12,20 @@
     "check-types": "tsc --noEmit"
   },
   "dependencies": {
+    "@babel/runtime": "^7.27.0",
+    "@repo/shared": "workspace:*",
+    "@repo/supabase": "workspace:*",
+    "@sentry/react-native": "^8.16.0",
+    "@supabase/supabase-js": "^2.49.0",
     "expo": "~52.0.0",
-    "expo-status-bar": "~2.0.0",
+    "expo-constants": "~17.0.0",
+    "expo-device": "~7.0.0",
+    "expo-image-picker": "^56.0.18",
     "expo-location": "~18.0.0",
     "expo-notifications": "~0.29.0",
-    "expo-constants": "~17.0.0",
+    "expo-status-bar": "~2.0.0",
     "react": "18.3.1",
-    "react-native": "0.76.0",
-    "@supabase/supabase-js": "^2.49.0",
-    "@repo/supabase": "workspace:*",
-    "@repo/shared": "workspace:*"
+    "react-native": "0.76.0"
   },
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",

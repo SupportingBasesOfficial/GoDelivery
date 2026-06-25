@@ -1,6 +1,7 @@
 /**
- * Rate limiter em memória simples.
- * Em produção, substituir por Redis ou similar.
+ * Rate limiter em memória com TTL automático.
+ * Escala para single-node sem custo. Quando escalar horizontalmente,
+ * substituir por Redis (Upstash tem tier gratuito).
  */
 
 interface RateLimitEntry {
@@ -9,6 +10,20 @@ interface RateLimitEntry {
 }
 
 const store = new Map<string, RateLimitEntry>();
+let lastCleanup = Date.now();
+const CLEANUP_INTERVAL_MS = 60_000; // Limpa a cada 60s
+
+function cleanupExpired() {
+  const now = Date.now();
+  if (now - lastCleanup < CLEANUP_INTERVAL_MS) return;
+
+  for (const [key, entry] of store) {
+    if (now > entry.resetAt) {
+      store.delete(key);
+    }
+  }
+  lastCleanup = now;
+}
 
 export interface RateLimitResult {
   allowed: boolean;
@@ -21,11 +36,12 @@ export function rateLimit(
   maxRequests: number,
   windowMs: number,
 ): RateLimitResult {
+  cleanupExpired();
+
   const now = Date.now();
   const entry = store.get(key);
 
   if (!entry || now > entry.resetAt) {
-    // Nova janela
     const newEntry: RateLimitEntry = {
       count: 1,
       resetAt: now + windowMs,

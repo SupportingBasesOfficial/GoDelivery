@@ -7,6 +7,11 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.5"
+  }
   public: {
     Tables: {
       courier_locations: {
@@ -113,6 +118,60 @@ export type Database = {
           },
         ]
       }
+      delivery_routes: {
+        Row: {
+          courier_id: string
+          created_at: string
+          ended_at: string | null
+          estimated_duration_min: number | null
+          id: string
+          started_at: string | null
+          status: string
+          tenant_id: string
+          total_distance_km: number | null
+          updated_at: string
+        }
+        Insert: {
+          courier_id: string
+          created_at?: string
+          ended_at?: string | null
+          estimated_duration_min?: number | null
+          id?: string
+          started_at?: string | null
+          status?: string
+          tenant_id: string
+          total_distance_km?: number | null
+          updated_at?: string
+        }
+        Update: {
+          courier_id?: string
+          created_at?: string
+          ended_at?: string | null
+          estimated_duration_min?: number | null
+          id?: string
+          started_at?: string | null
+          status?: string
+          tenant_id?: string
+          total_distance_km?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_routes_courier_id_fkey"
+            columns: ["courier_id"]
+            isOneToOne: false
+            referencedRelation: "couriers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_routes_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           body: string
@@ -153,6 +212,66 @@ export type Database = {
             columns: ["recipient_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_events: {
+        Row: {
+          actor_id: string | null
+          actor_role: string
+          courier_id: string | null
+          created_at: string
+          event_type: Database["public"]["Enums"]["order_event_type"]
+          id: string
+          latitude: number | null
+          longitude: number | null
+          metadata: Json | null
+          notes: string | null
+          order_id: string
+          route_id: string | null
+        }
+        Insert: {
+          actor_id?: string | null
+          actor_role?: string
+          courier_id?: string | null
+          created_at?: string
+          event_type: Database["public"]["Enums"]["order_event_type"]
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          metadata?: Json | null
+          notes?: string | null
+          order_id: string
+          route_id?: string | null
+        }
+        Update: {
+          actor_id?: string | null
+          actor_role?: string
+          courier_id?: string | null
+          created_at?: string
+          event_type?: Database["public"]["Enums"]["order_event_type"]
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          metadata?: Json | null
+          notes?: string | null
+          order_id?: string
+          route_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_events_courier_id_fkey"
+            columns: ["courier_id"]
+            isOneToOne: false
+            referencedRelation: "couriers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_events_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
             referencedColumns: ["id"]
           },
         ]
@@ -201,7 +320,12 @@ export type Database = {
       }
       orders: {
         Row: {
+          accepted_at: string | null
+          assigned_at: string | null
+          cancelled_at: string | null
+          collected_at: string | null
           courier_id: string | null
+          courier_notified_at: string | null
           created_at: string
           created_by: string
           customer_name: string
@@ -215,18 +339,29 @@ export type Database = {
           distance_km: number | null
           estimated_minutes: number | null
           id: string
+          in_transit_at: string | null
+          operated_by: string | null
           order_value: number
           pickup_address: string
           pickup_lat: number | null
           pickup_lng: number | null
           platform_fee: number
+          proof_image_url: string | null
+          proof_uploaded_at: string | null
+          rejected_at: string | null
           rejection_reason: string | null
+          route_id: string | null
           status: Database["public"]["Enums"]["order_status"]
           tenant_id: string
           updated_at: string
         }
         Insert: {
+          accepted_at?: string | null
+          assigned_at?: string | null
+          cancelled_at?: string | null
+          collected_at?: string | null
           courier_id?: string | null
+          courier_notified_at?: string | null
           created_at?: string
           created_by: string
           customer_name: string
@@ -240,18 +375,29 @@ export type Database = {
           distance_km?: number | null
           estimated_minutes?: number | null
           id?: string
+          in_transit_at?: string | null
+          operated_by?: string | null
           order_value?: number
           pickup_address: string
           pickup_lat?: number | null
           pickup_lng?: number | null
           platform_fee?: number
+          proof_image_url?: string | null
+          proof_uploaded_at?: string | null
+          rejected_at?: string | null
           rejection_reason?: string | null
+          route_id?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           tenant_id: string
           updated_at?: string
         }
         Update: {
+          accepted_at?: string | null
+          assigned_at?: string | null
+          cancelled_at?: string | null
+          collected_at?: string | null
           courier_id?: string | null
+          courier_notified_at?: string | null
           created_at?: string
           created_by?: string
           customer_name?: string
@@ -265,12 +411,18 @@ export type Database = {
           distance_km?: number | null
           estimated_minutes?: number | null
           id?: string
+          in_transit_at?: string | null
+          operated_by?: string | null
           order_value?: number
           pickup_address?: string
           pickup_lat?: number | null
           pickup_lng?: number | null
           platform_fee?: number
+          proof_image_url?: string | null
+          proof_uploaded_at?: string | null
+          rejected_at?: string | null
           rejection_reason?: string | null
+          route_id?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           tenant_id?: string
           updated_at?: string
@@ -288,6 +440,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_route_id_fkey"
+            columns: ["route_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_routes"
             referencedColumns: ["id"]
           },
           {
@@ -542,10 +701,25 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_current_user_tenant_id: { Args: never; Returns: string }
+      is_admin: { Args: never; Returns: boolean }
     }
     Enums: {
       courier_status: "offline" | "available" | "busy"
+      order_event_type:
+        | "created"
+        | "assigned"
+        | "reassigned"
+        | "accepted"
+        | "rejected"
+        | "cancelled"
+        | "collected"
+        | "in_transit"
+        | "delivered"
+        | "courier_notified"
+        | "route_started"
+        | "route_ended"
+        | "location_updated"
       order_status:
         | "draft"
         | "pending_courier"
@@ -554,6 +728,7 @@ export type Database = {
         | "in_transit"
         | "delivered"
         | "rejected"
+        | "cancelled"
       payment_status: "pending" | "paid" | "failed" | "refunded"
       plan: "free" | "basic" | "pro" | "enterprise"
       subscription_status:
@@ -691,6 +866,21 @@ export const Constants = {
   public: {
     Enums: {
       courier_status: ["offline", "available", "busy"],
+      order_event_type: [
+        "created",
+        "assigned",
+        "reassigned",
+        "accepted",
+        "rejected",
+        "cancelled",
+        "collected",
+        "in_transit",
+        "delivered",
+        "courier_notified",
+        "route_started",
+        "route_ended",
+        "location_updated",
+      ],
       order_status: [
         "draft",
         "pending_courier",
@@ -699,6 +889,7 @@ export const Constants = {
         "in_transit",
         "delivered",
         "rejected",
+        "cancelled",
       ],
       payment_status: ["pending", "paid", "failed", "refunded"],
       plan: ["free", "basic", "pro", "enterprise"],

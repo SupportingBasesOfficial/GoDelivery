@@ -1,0 +1,9 @@
+{
+  "buildCommand": "cd ../.. && pnpm build --filter=web",
+  "outputDirectory": ".next",
+  "installCommand": "pnpm install",
+  "framework": "nextjs",
+  "env": {
+    "SKIP_ENV_VALIDATION": "true"
+  }
+}

@@ -7,8 +7,30 @@ import {
 } from "../../actions/settings";
 import type { FeeRange } from "../../actions/settings";
 
+interface FeeRangeInput {
+  minKm: string;
+  maxKm: string;
+  fee: string;
+}
+
+function toInput(r: FeeRange): FeeRangeInput {
+  return {
+    minKm: String(r.minKm),
+    maxKm: String(r.maxKm),
+    fee: String(r.fee),
+  };
+}
+
+function toRange(r: FeeRangeInput): FeeRange {
+  return {
+    minKm: parseFloat(r.minKm) || 0,
+    maxKm: parseFloat(r.maxKm) || 0,
+    fee: parseFloat(r.fee) || 0,
+  };
+}
+
 export default function SettingsPage() {
-  const [feeRanges, setFeeRanges] = useState<FeeRange[]>([]);
+  const [feeRanges, setFeeRanges] = useState<FeeRangeInput[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -19,7 +41,7 @@ export default function SettingsPage() {
       setLoading(true);
       const result = await getTenantSettings();
       if (result.ok) {
-        setFeeRanges(result.data.feeRanges);
+        setFeeRanges(result.data.feeRanges.map(toInput));
       } else {
         setError(result.error?.message ?? "Erro ao carregar configurações");
       }
@@ -29,10 +51,10 @@ export default function SettingsPage() {
   }, []);
 
   function addRange() {
-    setFeeRanges((prev) => [...prev, { minKm: 0, maxKm: 5, fee: 5 }]);
+    setFeeRanges((prev) => [...prev, { minKm: "0", maxKm: "5", fee: "5" }]);
   }
 
-  function updateRange(index: number, field: keyof FeeRange, value: number) {
+  function updateRange(index: number, field: keyof FeeRangeInput, value: string) {
     setFeeRanges((prev) =>
       prev.map((r, i) => (i === index ? { ...r, [field]: value } : r)),
     );
@@ -47,7 +69,7 @@ export default function SettingsPage() {
     setError(null);
     setSuccess(false);
 
-    const result = await updateTenantSettings({ feeRanges });
+    const result = await updateTenantSettings({ feeRanges: feeRanges.map(toRange) });
 
     if (!result.ok) {
       setError(result.error?.message ?? "Erro ao salvar");
@@ -83,11 +105,11 @@ export default function SettingsPage() {
                   Min (km)
                 </label>
                 <input
-                  type="number"
-                  step="0.1"
+                  type="text"
+                  inputMode="decimal"
                   value={range.minKm}
                   onChange={(e) =>
-                    updateRange(index, "minKm", parseFloat(e.target.value) || 0)
+                    updateRange(index, "minKm", e.target.value)
                   }
                   className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
                 />
@@ -97,11 +119,11 @@ export default function SettingsPage() {
                   Max (km)
                 </label>
                 <input
-                  type="number"
-                  step="0.1"
+                  type="text"
+                  inputMode="decimal"
                   value={range.maxKm}
                   onChange={(e) =>
-                    updateRange(index, "maxKm", parseFloat(e.target.value) || 0)
+                    updateRange(index, "maxKm", e.target.value)
                   }
                   className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
                 />
@@ -111,11 +133,11 @@ export default function SettingsPage() {
                   Taxa (R$)
                 </label>
                 <input
-                  type="number"
-                  step="0.01"
+                  type="text"
+                  inputMode="decimal"
                   value={range.fee}
                   onChange={(e) =>
-                    updateRange(index, "fee", parseFloat(e.target.value) || 0)
+                    updateRange(index, "fee", e.target.value)
                   }
                   className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
                 />

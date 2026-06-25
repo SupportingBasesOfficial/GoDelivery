@@ -57,6 +57,7 @@ export default function RegisterPage() {
         <form
           onSubmit={handleSubmit}
           className="space-y-4 rounded-xl bg-white p-6 shadow"
+          aria-label="Formulário de cadastro"
         >
           <div>
             <label
@@ -70,7 +71,9 @@ export default function RegisterPage() {
               name="fullName"
               type="text"
               required
-              className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+              aria-required="true"
+              aria-invalid={!!error}
+              className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
             />
           </div>
 
@@ -86,7 +89,9 @@ export default function RegisterPage() {
               name="email"
               type="email"
               required
-              className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+              aria-required="true"
+              aria-invalid={!!error}
+              className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
             />
           </div>
 
@@ -102,7 +107,9 @@ export default function RegisterPage() {
               name="phone"
               type="tel"
               required
-              className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+              aria-required="true"
+              aria-invalid={!!error}
+              className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
             />
           </div>
 
@@ -118,7 +125,9 @@ export default function RegisterPage() {
               name="tenantName"
               type="text"
               required
-              className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+              aria-required="true"
+              aria-invalid={!!error}
+              className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
             />
           </div>
 
@@ -134,9 +143,11 @@ export default function RegisterPage() {
               name="tenantSlug"
               type="text"
               required
+              aria-required="true"
+              aria-invalid={!!error}
               pattern="[a-z0-9-]+"
               title="Apenas letras minúsculas, números e hífen"
-              className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+              className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
             />
             <p className="mt-1 text-xs text-gray-500">Ex: minha-empresa</p>
           </div>
@@ -154,7 +165,9 @@ export default function RegisterPage() {
               type="password"
               required
               minLength={6}
-              className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+              aria-required="true"
+              aria-invalid={!!error}
+              className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
             />
           </div>
 
@@ -171,12 +184,15 @@ export default function RegisterPage() {
               type="password"
               required
               minLength={6}
-              className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+              aria-required="true"
+              aria-invalid={!!error}
+              aria-describedby="password-error"
+              className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
             />
           </div>
 
           {error && (
-            <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+            <div id="password-error" role="alert" aria-live="assertive" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">
               {error}
             </div>
           )}
@@ -184,7 +200,8 @@ export default function RegisterPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-lg bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            aria-busy={loading}
+            className="w-full rounded-lg bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
           >
             {loading ? "Cadastrando..." : "Criar conta"}
           </button>

@@ -18,6 +18,7 @@ jobs:
       NODE_ENV: test
       NEXT_PUBLIC_SUPABASE_URL: "https://supabase.co"
       NEXT_PUBLIC_SUPABASE_ANON_KEY: "placeholder-key"
+      SKIP_ENV_VALIDATION: "true"
     steps:
       - uses: actions/checkout@v4
 
@@ -48,3 +49,35 @@ jobs:
 
       - name: Test
         run: pnpm test:run
+
+  e2e:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    env:
+      NODE_ENV: test
+      NEXT_PUBLIC_SUPABASE_URL: "https://supabase.co"
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: "placeholder-key"
+      SKIP_ENV_VALIDATION: "true"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+          package_json_file: package.json
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm --filter web exec playwright install chromium
+
+      - name: Run E2E tests
+        run: pnpm --filter web test:e2e

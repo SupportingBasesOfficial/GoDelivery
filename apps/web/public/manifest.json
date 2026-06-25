@@ -1,0 +1,16 @@
+{
+  "name": "GoDelivery — Painel de Entregas",
+  "short_name": "GoDelivery",
+  "description": "Plataforma multi-tenant de gestão de motoboys e entregas",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563EB",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

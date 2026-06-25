@@ -38,7 +38,8 @@ const statusLabels: Record<string, string> = {
   collected: "Coletado",
   in_transit: "Em rota",
   delivered: "Entregue",
-  rejected: "Cancelado",
+  rejected: "Recusado",
+  cancelled: "Cancelado",
 };
 
 const statusColors: Record<string, string> = {
@@ -49,6 +50,7 @@ const statusColors: Record<string, string> = {
   in_transit: "bg-indigo-100 text-indigo-700",
   delivered: "bg-green-100 text-green-700",
   rejected: "bg-red-100 text-red-700",
+  cancelled: "bg-gray-100 text-gray-500",
 };
 
 export default function AdminClient({

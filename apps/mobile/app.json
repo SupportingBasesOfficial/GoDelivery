@@ -11,7 +11,10 @@
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "O GoDelivery precisa acessar sua localização para rastrear entregas em tempo real.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "O GoDelivery precisa acessar sua localização em background para notificar o empresário sobre sua chegada.",
-        "UIBackgroundModes": ["location", "fetch"]
+        "UIBackgroundModes": [
+          "location",
+          "fetch"
+        ]
       }
     },
     "android": {
@@ -28,6 +31,11 @@
         "android.permission.FOREGROUND_SERVICE_LOCATION"
       ]
     },
+    "extra": {
+      "eas": {
+        "projectId": "ae974d17-47cb-4bcd-a0fb-d2dca239c311"
+      }
+    },
     "plugins": [
       [
         "expo-location",
@@ -37,7 +45,10 @@
           "isAndroidForegroundServiceEnabled": true
         }
       ],
-      ["expo-notifications"]
-    ]
+      [
+        "expo-notifications"
+      ]
+    ],
+    "owner": "mauricioreuterneto"
   }
 }
