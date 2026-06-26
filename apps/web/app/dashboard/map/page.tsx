@@ -42,6 +42,26 @@ function formatDate(dateStr: string | null) {
   });
 }
 
+/**
+ * Retorna true se a ultima localizacao for mais antiga que o threshold (10 min).
+ * Usado para tratar entregadores que ficaram stale (app fechou/crashou) como offline.
+ */
+function isLocationStale(lastLocationAt: string | null): boolean {
+  if (!lastLocationAt) return true;
+  const STALE_THRESHOLD_MS = 10 * 60 * 1000; // 10 minutos
+  return Date.now() - new Date(lastLocationAt).getTime() > STALE_THRESHOLD_MS;
+}
+
+/**
+ * Status efetivo: se o banco diz "available" ou "busy" mas a localizacao
+ * esta stale (app fechou), consideramos offline visualmente.
+ */
+function getEffectiveStatus(courier: CourierWithLocation): string {
+  if (courier.status === "offline") return "offline";
+  if (isLocationStale(courier.lastLocationAt)) return "offline";
+  return courier.status;
+}
+
 export default function MapPage() {
   const [couriers, setCouriers] = useState<CourierWithLocation[]>([]);
   const [tenantLocation, setTenantLocation] = useState<TenantLocation | null>(null);
@@ -150,15 +170,15 @@ export default function MapPage() {
           <div className="flex gap-2 text-xs">
             <span className="flex items-center gap-1">
               <span className="h-2 w-2 rounded-full bg-green-500" />
-              Disponível ({couriers.filter((c) => c.status === "available").length})
+              Disponível ({couriers.filter((c) => getEffectiveStatus(c) === "available").length})
             </span>
             <span className="flex items-center gap-1">
               <span className="h-2 w-2 rounded-full bg-yellow-500" />
-              Em entrega ({couriers.filter((c) => c.status === "busy").length})
+              Em entrega ({couriers.filter((c) => getEffectiveStatus(c) === "busy").length})
             </span>
             <span className="flex items-center gap-1">
               <span className="h-2 w-2 rounded-full bg-gray-400" />
-              Offline ({couriers.filter((c) => c.status === "offline").length})
+              Offline ({couriers.filter((c) => getEffectiveStatus(c) === "offline").length})
             </span>
           </div>
         </div>
@@ -214,17 +234,17 @@ export default function MapPage() {
                   >
                     <div className="flex items-center gap-2">
                       <span
-                        className={`h-2 w-2 rounded-full ${statusColors[courier.status] || "bg-gray-400"}`}
+                        className={`h-2 w-2 rounded-full ${statusColors[getEffectiveStatus(courier)] || "bg-gray-400"}`}
                       />
                       <span className="font-medium text-gray-900">
                         {courier.fullName || courier.phone || courier.vehiclePlate || "Entregador"}
                       </span>
                     </div>
                     <p className="mt-1 text-xs text-gray-500">
-                      {statusLabels[courier.status] || courier.status}
+                      {statusLabels[getEffectiveStatus(courier)] || getEffectiveStatus(courier)}
                       {courier.vehicleType && ` · ${courier.vehicleType}`}
                     </p>
-                    {courier.lat && courier.lng && courier.status !== "offline" ? (
+                    {courier.lat && courier.lng && getEffectiveStatus(courier) !== "offline" ? (
                       <div className="mt-1 flex items-center gap-2">
                         <p className="text-xs text-gray-400">
                           Atualizado: {formatDate(courier.lastLocationAt)}
@@ -239,7 +259,7 @@ export default function MapPage() {
                       </div>
                     ) : (
                       <p className="mt-1 text-xs text-orange-500">
-                        {courier.status === "offline"
+                        {getEffectiveStatus(courier) === "offline"
                           ? "Offline — sem localização ativa"
                           : courier.lat && courier.lng
                             ? "Localização desatualizada"

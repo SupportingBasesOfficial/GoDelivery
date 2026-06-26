@@ -94,9 +94,21 @@ function MapCenterUpdater({
   return null;
 }
 
+function isLocationStale(lastLocationAt: string | null): boolean {
+  if (!lastLocationAt) return true;
+  const STALE_THRESHOLD_MS = 10 * 60 * 1000; // 10 minutos
+  return Date.now() - new Date(lastLocationAt).getTime() > STALE_THRESHOLD_MS;
+}
+
+function getEffectiveStatus(courier: CourierWithLocation): string {
+  if (courier.status === "offline") return "offline";
+  if (isLocationStale(courier.lastLocationAt)) return "offline";
+  return courier.status;
+}
+
 export default function MapView({ couriers, tenantLocation, focusTarget }: MapViewProps) {
   const onlineCouriers = couriers.filter(
-    (c) => c.status !== "offline" && c.lat && c.lng
+    (c) => getEffectiveStatus(c) !== "offline" && c.lat && c.lng
   );
 
   const hasTenantLocation = tenantLocation?.lat && tenantLocation?.lng;
@@ -165,13 +177,13 @@ export default function MapView({ couriers, tenantLocation, focusTarget }: MapVi
         <Marker
           key={courier.id}
           position={[courier.lat!, courier.lng!]}
-          icon={getCourierIcon(courier.vehicleType, courier.status === "offline")}
+          icon={getCourierIcon(courier.vehicleType, getEffectiveStatus(courier) === "offline")}
         >
           <Popup>
             <div className="text-sm">
               <p className="font-semibold">{courier.fullName || courier.phone || courier.vehiclePlate || "Entregador"}</p>
               <p className="text-gray-600">
-                {statusLabels[courier.status] || courier.status}
+                {statusLabels[getEffectiveStatus(courier)] || getEffectiveStatus(courier)}
               </p>
               {courier.vehicleType && (
                 <p className="text-gray-500">{courier.vehicleType}</p>
