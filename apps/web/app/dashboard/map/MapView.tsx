@@ -5,26 +5,46 @@ import { Icon } from "leaflet";
 import { useEffect } from "react";
 import type { CourierWithLocation, TenantLocation } from "../../actions/couriers";
 
-const courierIcon = new Icon({
-  iconUrl: "https://cdn-icons-png.flaticon.com/512/3089/3089803.png",
-  iconSize: [32, 32],
-  iconAnchor: [16, 32],
-  popupAnchor: [0, -32],
-});
-
-const offlineIcon = new Icon({
-  iconUrl: "https://cdn-icons-png.flaticon.com/512/3089/3089803.png",
-  iconSize: [24, 24],
-  iconAnchor: [12, 24],
-  popupAnchor: [0, -24],
-});
-
 const storeIcon = new Icon({
   iconUrl: "https://cdn-icons-png.flaticon.com/512/2276/2276122.png",
   iconSize: [36, 36],
   iconAnchor: [18, 36],
   popupAnchor: [0, -36],
 });
+
+function getCourierIcon(vehicleType: string | null, isOffline: boolean) {
+  const size: [number, number] = isOffline ? [24, 24] : [32, 32];
+  const anchor: [number, number] = isOffline ? [12, 24] : [16, 32];
+  const popupAnchor: [number, number] = isOffline ? [0, -24] : [0, -32];
+
+  switch (vehicleType?.toLowerCase()) {
+    case "bike":
+    case "bicicleta":
+      return new Icon({
+        iconUrl: "https://cdn-icons-png.flaticon.com/512/2933/2933921.png",
+        iconSize: size,
+        iconAnchor: anchor,
+        popupAnchor,
+      });
+    case "car":
+    case "carro":
+      return new Icon({
+        iconUrl: "https://cdn-icons-png.flaticon.com/512/3202/3202926.png",
+        iconSize: size,
+        iconAnchor: anchor,
+        popupAnchor,
+      });
+    case "moto":
+    case "motorcycle":
+    default:
+      return new Icon({
+        iconUrl: "https://cdn-icons-png.flaticon.com/512/3089/3089803.png",
+        iconSize: size,
+        iconAnchor: anchor,
+        popupAnchor,
+      });
+  }
+}
 
 const statusLabels: Record<string, string> = {
   available: "Disponível",
@@ -46,50 +66,81 @@ function formatDate(dateStr: string | null) {
 interface MapViewProps {
   couriers: CourierWithLocation[];
   tenantLocation: TenantLocation | null;
+  focusTarget?: { type: "tenant" } | { type: "courier"; courierId: string } | null;
 }
 
-// Atualiza o centro do mapa quando os dados mudam (react-leaflet nao reage a prop center apos mount)
+// Atualiza o centro do mapa quando os dados ou foco mudam
 function MapCenterUpdater({
   center,
   zoom = 13,
+  focusTarget,
 }: {
   center: [number, number];
   zoom?: number;
+  focusTarget?: MapViewProps["focusTarget"];
 }) {
   const map = useMap();
+
   useEffect(() => {
-    map.setView(center, zoom);
-  }, [center, zoom, map]);
+    if (focusTarget?.type === "tenant") {
+      map.setView(center, 16);
+    } else if (focusTarget?.type === "courier") {
+      map.setView(center, 16);
+    } else {
+      map.setView(center, zoom);
+    }
+  }, [center, zoom, focusTarget, map]);
+
   return null;
 }
 
-export default function MapView({ couriers, tenantLocation }: MapViewProps) {
+export default function MapView({ couriers, tenantLocation, focusTarget }: MapViewProps) {
   const onlineCouriers = couriers.filter(
     (c) => c.status !== "offline" && c.lat && c.lng
   );
 
   const hasTenantLocation = tenantLocation?.lat && tenantLocation?.lng;
 
-  const centerLat =
-    onlineCouriers.length > 0
-      ? onlineCouriers.reduce((sum, c) => sum + (c.lat ?? 0), 0) / onlineCouriers.length
-      : hasTenantLocation
-        ? tenantLocation!.lat!
-        : -23.55;
-  const centerLng =
-    onlineCouriers.length > 0
-      ? onlineCouriers.reduce((sum, c) => sum + (c.lng ?? 0), 0) / onlineCouriers.length
-      : hasTenantLocation
-        ? tenantLocation!.lng!
-        : -46.63;
+  let centerLat: number;
+  let centerLng: number;
+  let zoom = 13;
+
+  if (focusTarget?.type === "tenant" && hasTenantLocation) {
+    centerLat = tenantLocation!.lat!;
+    centerLng = tenantLocation!.lng!;
+    zoom = 16;
+  } else if (focusTarget?.type === "courier") {
+    const focusedCourier = onlineCouriers.find((c) => c.id === focusTarget.courierId);
+    if (focusedCourier) {
+      centerLat = focusedCourier.lat!;
+      centerLng = focusedCourier.lng!;
+      zoom = 16;
+    } else {
+      centerLat = hasTenantLocation ? tenantLocation!.lat! : -23.55;
+      centerLng = hasTenantLocation ? tenantLocation!.lng! : -46.63;
+    }
+  } else {
+    centerLat =
+      onlineCouriers.length > 0
+        ? onlineCouriers.reduce((sum, c) => sum + (c.lat ?? 0), 0) / onlineCouriers.length
+        : hasTenantLocation
+          ? tenantLocation!.lat!
+          : -23.55;
+    centerLng =
+      onlineCouriers.length > 0
+        ? onlineCouriers.reduce((sum, c) => sum + (c.lng ?? 0), 0) / onlineCouriers.length
+        : hasTenantLocation
+          ? tenantLocation!.lng!
+          : -46.63;
+  }
 
   return (
     <MapContainer
       center={[centerLat, centerLng]}
-      zoom={13}
+      zoom={zoom}
       className="h-full w-full"
     >
-      <MapCenterUpdater center={[centerLat, centerLng]} />
+      <MapCenterUpdater center={[centerLat, centerLng]} zoom={zoom} focusTarget={focusTarget} />
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -114,11 +165,11 @@ export default function MapView({ couriers, tenantLocation }: MapViewProps) {
         <Marker
           key={courier.id}
           position={[courier.lat!, courier.lng!]}
-          icon={courier.status === "offline" ? offlineIcon : courierIcon}
+          icon={getCourierIcon(courier.vehicleType, courier.status === "offline")}
         >
           <Popup>
             <div className="text-sm">
-              <p className="font-semibold">{courier.fullName || courier.phone || courier.vehiclePlate || "Motoboy"}</p>
+              <p className="font-semibold">{courier.fullName || courier.phone || courier.vehiclePlate || "Entregador"}</p>
               <p className="text-gray-600">
                 {statusLabels[courier.status] || courier.status}
               </p>

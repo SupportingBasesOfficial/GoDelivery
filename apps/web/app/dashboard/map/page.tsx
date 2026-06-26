@@ -22,7 +22,11 @@ const statusColors: Record<string, string> = {
 };
 
 // Import dinâmico do Mapa para evitar SSR
-const MapView = dynamic<{ couriers: CourierWithLocation[]; tenantLocation: TenantLocation | null }>(
+const MapView = dynamic<{
+  couriers: CourierWithLocation[];
+  tenantLocation: TenantLocation | null;
+  focusTarget?: { type: "tenant" } | { type: "courier"; courierId: string } | null;
+}>(
   () => import("./MapView"),
   { ssr: false }
 );
@@ -41,6 +45,9 @@ function formatDate(dateStr: string | null) {
 export default function MapPage() {
   const [couriers, setCouriers] = useState<CourierWithLocation[]>([]);
   const [tenantLocation, setTenantLocation] = useState<TenantLocation | null>(null);
+  const [focusTarget, setFocusTarget] = useState<
+    { type: "tenant" } | { type: "courier"; courierId: string } | null
+  >(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [connectionStatus, setConnectionStatus] = useState("conectando...");
@@ -54,7 +61,7 @@ export default function MapPage() {
     if (couriersResult.ok) {
       setCouriers(couriersResult.data);
     } else {
-      setError(couriersResult.error?.message ?? "Erro ao carregar motoboys");
+      setError(couriersResult.error?.message ?? "Erro ao carregar entregadores");
     }
     if (tenantResult.ok) {
       setTenantLocation(tenantResult.data);
@@ -120,11 +127,20 @@ export default function MapPage() {
           >
             Rotas
           </Link>
+          {tenantLocation?.lat && tenantLocation?.lng && (
+            <button
+              type="button"
+              onClick={() => setFocusTarget({ type: "tenant" })}
+              className="rounded-lg bg-blue-100 px-3 py-1.5 text-sm font-medium text-blue-700 hover:bg-blue-200"
+            >
+              Focar estabelecimento
+            </button>
+          )}
           <Link
             href="/dashboard/couriers"
             className="rounded-lg bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-200"
           >
-            Motoboys
+            Entregadores
           </Link>
         </div>
         <div className="flex items-center gap-2">
@@ -157,7 +173,7 @@ export default function MapPage() {
                         className={`h-2 w-2 rounded-full ${statusColors[courier.status] || "bg-gray-400"}`}
                       />
                       <span className="font-medium text-gray-900">
-                        {courier.fullName || courier.phone || courier.vehiclePlate || "Motoboy"}
+                        {courier.fullName || courier.phone || courier.vehiclePlate || "Entregador"}
                       </span>
                     </div>
                     <p className="mt-1 text-xs text-gray-500">
@@ -165,18 +181,17 @@ export default function MapPage() {
                       {courier.vehicleType && ` · ${courier.vehicleType}`}
                     </p>
                     {courier.lat && courier.lng ? (
-                      <div className="mt-1 flex items-center justify-between">
+                      <div className="mt-1 flex items-center gap-2">
                         <p className="text-xs text-gray-400">
                           Atualizado: {formatDate(courier.lastLocationAt)}
                         </p>
-                        <a
-                          href={`https://www.google.com/maps?q=${courier.lat},${courier.lng}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                        <button
+                          type="button"
+                          onClick={() => setFocusTarget({ type: "courier", courierId: courier.id })}
                           className="text-xs text-blue-600 hover:underline"
                         >
-                          Ver no Maps
-                        </a>
+                          Focar no mapa
+                        </button>
                       </div>
                     ) : (
                       <p className="mt-1 text-xs text-gray-400">Sem localização</p>
@@ -190,7 +205,7 @@ export default function MapPage() {
 
         {/* Mapa */}
         <div className="flex-1">
-          <MapView couriers={couriers} tenantLocation={tenantLocation} />
+          <MapView couriers={couriers} tenantLocation={tenantLocation} focusTarget={focusTarget} />
         </div>
       </div>
     </div>
