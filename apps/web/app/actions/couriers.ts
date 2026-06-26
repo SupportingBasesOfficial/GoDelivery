@@ -168,7 +168,7 @@ export async function createCourier(data: CreateCourierData): Promise<Result<{ u
 export interface CourierWithLocation {
   id: string;
   fullName: string;
-  email: string;
+  email?: string;
   status: string;
   vehicleType: string | null;
   vehiclePlate: string | null;
@@ -208,7 +208,7 @@ export async function getCouriersWithLocation(): Promise<Result<CourierWithLocat
       `
       id, status, vehicle_type, vehicle_plate,
       current_location_lat, current_location_lng, last_location_at,
-      profiles (full_name, email)
+      profiles (full_name)
       `,
     )
     .eq("tenant_id", profile.tenant_id)
@@ -222,7 +222,7 @@ export async function getCouriersWithLocation(): Promise<Result<CourierWithLocat
   const formatted = (couriers ?? []).map((c: any) => ({
     id: c.id,
     fullName: c.profiles?.full_name ?? "",
-    email: c.profiles?.email ?? "",
+    email: "",
     status: c.status ?? "offline",
     vehicleType: c.vehicle_type ?? null,
     vehiclePlate: c.vehicle_plate ?? null,
@@ -232,4 +232,52 @@ export async function getCouriersWithLocation(): Promise<Result<CourierWithLocat
   }));
 
   return ok(formatted);
+}
+
+export interface TenantLocation {
+  address: string | null;
+  lat: number | null;
+  lng: number | null;
+}
+
+/**
+ * Busca localizacao do estabelecimento (tenant) para centro do mapa.
+ */
+export async function getTenantLocation(): Promise<Result<TenantLocation>> {
+  const supabase = await createServerClient();
+
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    return err("Não autenticado", "auth/unauthenticated");
+  }
+
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("tenant_id")
+    .eq("id", user.id)
+    .single();
+
+  if (profileError || !profile?.tenant_id) {
+    return err("Perfil não encontrado", "profile/not-found");
+  }
+
+  const { data: tenant, error: tenantError } = await supabase
+    .from("tenants")
+    .select("address, latitude, longitude")
+    .eq("id", profile.tenant_id)
+    .single();
+
+  if (tenantError) {
+    return err(tenantError.message, "tenant/fetch-failed");
+  }
+
+  return ok({
+    address: tenant?.address ?? null,
+    lat: tenant?.latitude ?? null,
+    lng: tenant?.longitude ?? null,
+  });
 }

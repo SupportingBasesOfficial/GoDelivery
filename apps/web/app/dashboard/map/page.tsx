@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { createClient } from "@repo/supabase/client";
-import { getCouriersWithLocation } from "../../actions/couriers";
-import type { CourierWithLocation } from "../../actions/couriers";
+import { getCouriersWithLocation, getTenantLocation } from "../../actions/couriers";
+import type { CourierWithLocation, TenantLocation } from "../../actions/couriers";
 
 const supabase = createClient();
 
@@ -22,7 +22,10 @@ const statusColors: Record<string, string> = {
 };
 
 // Import dinâmico do Mapa para evitar SSR
-const MapView = dynamic<{ couriers: CourierWithLocation[] }>(() => import("./MapView"), { ssr: false });
+const MapView = dynamic<{ couriers: CourierWithLocation[]; tenantLocation: TenantLocation | null }>(
+  () => import("./MapView"),
+  { ssr: false }
+);
 
 function formatDate(dateStr: string | null) {
   if (!dateStr) return "—";
@@ -37,17 +40,24 @@ function formatDate(dateStr: string | null) {
 
 export default function MapPage() {
   const [couriers, setCouriers] = useState<CourierWithLocation[]>([]);
+  const [tenantLocation, setTenantLocation] = useState<TenantLocation | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [connectionStatus, setConnectionStatus] = useState("conectando...");
 
   async function load() {
     setLoading(true);
-    const result = await getCouriersWithLocation();
-    if (result.ok) {
-      setCouriers(result.data);
+    const [couriersResult, tenantResult] = await Promise.all([
+      getCouriersWithLocation(),
+      getTenantLocation(),
+    ]);
+    if (couriersResult.ok) {
+      setCouriers(couriersResult.data);
     } else {
-      setError(result.error?.message ?? "Erro ao carregar motoboys");
+      setError(couriersResult.error?.message ?? "Erro ao carregar motoboys");
+    }
+    if (tenantResult.ok) {
+      setTenantLocation(tenantResult.data);
     }
     setLoading(false);
   }
@@ -175,7 +185,7 @@ export default function MapPage() {
 
         {/* Mapa */}
         <div className="flex-1">
-          <MapView couriers={couriers} />
+          <MapView couriers={couriers} tenantLocation={tenantLocation} />
         </div>
       </div>
     </div>

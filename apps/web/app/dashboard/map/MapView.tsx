@@ -2,7 +2,7 @@
 
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import { Icon } from "leaflet";
-import type { CourierWithLocation } from "../../actions/couriers";
+import type { CourierWithLocation, TenantLocation } from "../../actions/couriers";
 
 const courierIcon = new Icon({
   iconUrl: "https://cdn-icons-png.flaticon.com/512/3089/3089803.png",
@@ -16,6 +16,13 @@ const offlineIcon = new Icon({
   iconSize: [24, 24],
   iconAnchor: [12, 24],
   popupAnchor: [0, -24],
+});
+
+const storeIcon = new Icon({
+  iconUrl: "https://cdn-icons-png.flaticon.com/512/2276/2276122.png",
+  iconSize: [36, 36],
+  iconAnchor: [18, 36],
+  popupAnchor: [0, -36],
 });
 
 const statusLabels: Record<string, string> = {
@@ -37,21 +44,28 @@ function formatDate(dateStr: string | null) {
 
 interface MapViewProps {
   couriers: CourierWithLocation[];
+  tenantLocation: TenantLocation | null;
 }
 
-export default function MapView({ couriers }: MapViewProps) {
+export default function MapView({ couriers, tenantLocation }: MapViewProps) {
   const onlineCouriers = couriers.filter(
     (c) => c.status !== "offline" && c.lat && c.lng
   );
 
+  const hasTenantLocation = tenantLocation?.lat && tenantLocation?.lng;
+
   const centerLat =
     onlineCouriers.length > 0
       ? onlineCouriers.reduce((sum, c) => sum + (c.lat ?? 0), 0) / onlineCouriers.length
-      : -23.55;
+      : hasTenantLocation
+        ? tenantLocation!.lat!
+        : -23.55;
   const centerLng =
     onlineCouriers.length > 0
       ? onlineCouriers.reduce((sum, c) => sum + (c.lng ?? 0), 0) / onlineCouriers.length
-      : -46.63;
+      : hasTenantLocation
+        ? tenantLocation!.lng!
+        : -46.63;
 
   return (
     <MapContainer
@@ -63,6 +77,22 @@ export default function MapView({ couriers }: MapViewProps) {
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
+      {/* Marcador do estabelecimento */}
+      {hasTenantLocation && (
+        <Marker
+          position={[tenantLocation!.lat!, tenantLocation!.lng!]}
+          icon={storeIcon}
+        >
+          <Popup>
+            <div className="text-sm">
+              <p className="font-semibold">Seu estabelecimento</p>
+              {tenantLocation?.address && (
+                <p className="text-gray-600">{tenantLocation.address}</p>
+              )}
+            </div>
+          </Popup>
+        </Marker>
+      )}
       {onlineCouriers.map((courier) => (
         <Marker
           key={courier.id}
