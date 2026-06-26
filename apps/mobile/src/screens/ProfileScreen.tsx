@@ -15,12 +15,20 @@ import type { AuthUser } from "../hooks/useAuth";
 interface ProfileData {
   full_name: string | null;
   phone: string | null;
+  email: string;
+  license_number: string | null;
   vehicle_type: string | null;
   vehicle_plate: string | null;
   total_deliveries: number;
   total_earnings: number;
   status: string;
 }
+
+const VEHICLE_OPTIONS = [
+  { value: "moto", label: "Moto" },
+  { value: "bike", label: "Bicicleta" },
+  { value: "car", label: "Carro" },
+] as const;
 
 interface ProfileScreenProps {
   user: AuthUser;
@@ -39,7 +47,7 @@ export default function ProfileScreen({ user, onBack, onSignOut }: ProfileScreen
     setLoading(true);
     const { data, error } = await supabase
       .from("couriers")
-      .select("vehicle_type, vehicle_plate, total_deliveries, total_earnings, status, profiles (full_name, phone)")
+      .select("vehicle_type, vehicle_plate, license_number, total_deliveries, total_earnings, status, profiles (full_name, phone)")
       .eq("id", user.id)
       .single();
 
@@ -56,6 +64,8 @@ export default function ProfileScreen({ user, onBack, onSignOut }: ProfileScreen
     const loaded: ProfileData = {
       full_name: profiles?.full_name ?? null,
       phone: profiles?.phone ?? null,
+      email: user.email ?? "",
+      license_number: data.license_number ?? null,
       vehicle_type: data.vehicle_type,
       vehicle_plate: data.vehicle_plate,
       total_deliveries: data.total_deliveries ?? 0,
@@ -96,7 +106,7 @@ export default function ProfileScreen({ user, onBack, onSignOut }: ProfileScreen
     const { error: courierError } = await supabase
       .from("couriers")
       .update({
-        vehicle_type: form.vehicle_type?.trim().toLowerCase() || null,
+        vehicle_type: form.vehicle_type || null,
         vehicle_plate: form.vehicle_plate?.trim().toUpperCase() || null,
         updated_at: new Date().toISOString(),
       })
@@ -174,14 +184,28 @@ export default function ProfileScreen({ user, onBack, onSignOut }: ProfileScreen
 
               <Text style={[styles.sectionLabel, { marginTop: 16 }]}>Veiculo</Text>
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Tipo (moto, bike, carro)</Text>
-                <TextInput
-                  style={styles.input}
-                  value={form.vehicle_type ?? ""}
-                  onChangeText={(text) => setForm({ ...form, vehicle_type: text })}
-                  placeholder="moto"
-                  autoCapitalize="none"
-                />
+                <Text style={styles.inputLabel}>Tipo</Text>
+                <View style={styles.vehicleSelector}>
+                  {VEHICLE_OPTIONS.map((opt) => (
+                    <TouchableOpacity
+                      key={opt.value}
+                      style={[
+                        styles.vehicleOption,
+                        form.vehicle_type === opt.value && styles.vehicleOptionActive,
+                      ]}
+                      onPress={() => setForm({ ...form, vehicle_type: opt.value })}
+                    >
+                      <Text
+                        style={[
+                          styles.vehicleOptionText,
+                          form.vehicle_type === opt.value && styles.vehicleOptionTextActive,
+                        ]}
+                      >
+                        {opt.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
               </View>
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Placa</Text>
@@ -230,8 +254,15 @@ export default function ProfileScreen({ user, onBack, onSignOut }: ProfileScreen
               </View>
 
               <View style={styles.infoRow}>
+                <Text style={styles.label}>CNH</Text>
+                <Text style={styles.value}>{profile.license_number ?? "—"}</Text>
+              </View>
+
+              <View style={styles.infoRow}>
                 <Text style={styles.label}>Veiculo</Text>
-                <Text style={styles.value}>{profile.vehicle_type ?? "—"}</Text>
+                <Text style={styles.value}>
+                  {VEHICLE_OPTIONS.find((o) => o.value === profile.vehicle_type)?.label ?? profile.vehicle_type ?? "—"}
+                </Text>
               </View>
 
               <View style={styles.infoRow}>
@@ -349,4 +380,29 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   signOutText: { color: "#dc2626", fontWeight: "600", fontSize: 16 },
+  vehicleSelector: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  vehicleOption: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    borderRadius: 8,
+    paddingVertical: 10,
+    alignItems: "center",
+    backgroundColor: "#fafafa",
+  },
+  vehicleOptionActive: {
+    borderColor: "#3b82f6",
+    backgroundColor: "#eff6ff",
+  },
+  vehicleOptionText: {
+    fontSize: 14,
+    color: "#6b7280",
+  },
+  vehicleOptionTextActive: {
+    color: "#3b82f6",
+    fontWeight: "600",
+  },
 });

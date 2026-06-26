@@ -3,6 +3,7 @@
  * Fonte de verdade para validação runtime (server actions, forms, API).
  */
 import { z } from "zod";
+import { VehicleType } from "./enums";
 
 // ─── Helpers reutilizáveis ──────────────────────────────────────────
 
@@ -162,7 +163,7 @@ export const UpdateProfileSchema = ProfileSchema.partial().omit({
 export const CourierSchema = z.object({
   id: uuid,
   tenant_id: uuid,
-  vehicle_type: nullableString,
+  vehicle_type: z.enum([VehicleType.MOTO, VehicleType.BIKE, VehicleType.CAR]).nullable().optional(),
   vehicle_plate: z
     .string()
     .regex(/^[A-Z]{3}-?\d[A-Z0-9]\d{2}$/i)

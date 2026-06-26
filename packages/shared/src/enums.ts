@@ -38,3 +38,23 @@ export const PaymentStatus = {
 } as const;
 
 export type PaymentStatus = (typeof PaymentStatus)[keyof typeof PaymentStatus];
+
+export const VehicleType = {
+  MOTO: "moto",
+  BIKE: "bike",
+  CAR: "car",
+} as const;
+
+export type VehicleType = (typeof VehicleType)[keyof typeof VehicleType];
+
+export const VehicleTypeLabel: Record<VehicleType, string> = {
+  [VehicleType.MOTO]: "Moto",
+  [VehicleType.BIKE]: "Bicicleta",
+  [VehicleType.CAR]: "Carro",
+};
+
+export const VehicleTypeOptions = [
+  { value: VehicleType.MOTO, label: VehicleTypeLabel[VehicleType.MOTO] },
+  { value: VehicleType.BIKE, label: VehicleTypeLabel[VehicleType.BIKE] },
+  { value: VehicleType.CAR, label: VehicleTypeLabel[VehicleType.CAR] },
+] as const;

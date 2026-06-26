@@ -11,6 +11,7 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@repo/shared": "workspace:*",
     "@repo/supabase": "workspace:*",
     "@repo/tailwind-config": "workspace:*",
     "@repo/ui": "workspace:*",

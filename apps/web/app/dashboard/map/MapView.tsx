@@ -12,33 +12,39 @@ const storeIcon = new Icon({
   popupAnchor: [0, -36],
 });
 
+// Ícones SVG inline codificados em base64 — nunca falham por CORS ou rede
+const SVG_ICONS = {
+  moto: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMjU2M0VCIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PGNpcmNsZSBjeD0iNS41IiBjeT0iMTYuNSIgcj0iMy41Ii8+PGNpcmNsZSBjeD0iMTguNSIgY3k9IjE2LjUiIHI9IjMuNSIvPjxwYXRoIGQ9Ik0xMiAxN2g0bTMtN2gtNmwyLTNoLTJsLTIgM2gtMmwtMiAzaDNsMi0zaDRsMiAzaDN6Ii8+PC9zdmc+",
+  bike: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMTZhMzRhIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PGNpcmNsZSBjeD0iNS41IiBjeT0iMTcuNSIgcj0iMy41Ii8+PGNpcmNsZSBjeD0iMTguNSIgY3k9IjE3LjUiIHI9IjMuNSIvPjxwYXRoIGQ9Ik0xNSA2YTEgMSAwIDEgMCAwLTIgMSAxIDAgMCAwIDAgMnpNNyAxMmwzLTMgMiAzaDRsLTIgMm0tMi0yaC0zbDMtM2gybTIgM2wzLTNoLTNsLTMgM2g0eiIvPjwvc3ZnPg==",
+  car: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZTY3ZTIyIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHBhdGggZD0iTTE5IDE3aDJjLjYgMCAxLS40IDEtMXYtM2MwLTIuNS0yLjUtNS01LTVoLTRsLTIgM2gtMmwtMiAzaC0zYy0yLjUgMC01IDIuNS01IDV2M2MwIC42LjQgMSAxIDFoMmMwIDEuMS45IDIgMiAyczItLjkgMi0yaDZjMCAxLjEuOSAyIDIgMnMyLS45IDItMnoiLz48Y2lyY2xlIGN4PSI2IiBjeT0iMTgiIHI9IjIiLz48Y2lyY2xlIGN4PSIxOCIgY3k9IjE4IiByPSIyIi8+PHBhdGggZD0iTTMgMTNoMThNMTEgMTBsMi0zaDRsMiAzaDN6Ii8+PC9zdmc+",
+};
+
 function getCourierIcon(vehicleType: string | null, isOffline: boolean) {
   const size: [number, number] = isOffline ? [24, 24] : [32, 32];
   const anchor: [number, number] = isOffline ? [12, 24] : [16, 32];
   const popupAnchor: [number, number] = isOffline ? [0, -24] : [0, -32];
 
+  const colorSuffix = isOffline ? "-gray" : "";
+
   switch (vehicleType?.toLowerCase()) {
     case "bike":
-    case "bicicleta":
       return new Icon({
-        iconUrl: "https://cdn-icons-png.flaticon.com/512/2933/2933921.png",
+        iconUrl: SVG_ICONS.bike,
         iconSize: size,
         iconAnchor: anchor,
         popupAnchor,
       });
     case "car":
-    case "carro":
       return new Icon({
-        iconUrl: "https://cdn-icons-png.flaticon.com/512/3202/3202926.png",
+        iconUrl: SVG_ICONS.car,
         iconSize: size,
         iconAnchor: anchor,
         popupAnchor,
       });
     case "moto":
-    case "motorcycle":
     default:
       return new Icon({
-        iconUrl: "https://cdn-icons-png.flaticon.com/512/3089/3089803.png",
+        iconUrl: SVG_ICONS.moto,
         iconSize: size,
         iconAnchor: anchor,
         popupAnchor,

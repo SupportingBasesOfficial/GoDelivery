@@ -1,5 +1,12 @@
 import { z } from "zod";
 
+// Alinhado com packages/shared/src/enums.ts — manter sincronizado
+const VehicleType = {
+  MOTO: "moto",
+  BIKE: "bike",
+  CAR: "car",
+} as const;
+
 // ===========================================
 // Schemas compartilhados
 // ===========================================
@@ -105,7 +112,9 @@ export const createCourierSchema = z.object({
   password: passwordSchema,
   licenseNumber: z.string().min(5, "Número da CNH é obrigatório").max(20),
   vehiclePlate: z.string().min(5, "Placa é obrigatória").max(10),
-  vehicleType: z.string().min(1, "Tipo de veículo é obrigatório").max(30),
+  vehicleType: z.enum([VehicleType.MOTO, VehicleType.BIKE, VehicleType.CAR], {
+    message: "Tipo de veículo deve ser Moto, Bicicleta ou Carro",
+  }),
 });
 
 export const updateCourierSchema = z.object({
@@ -114,7 +123,9 @@ export const updateCourierSchema = z.object({
   phone: phoneSchema,
   licenseNumber: z.string().min(5, "Número da CNH é obrigatório").max(20),
   vehiclePlate: z.string().min(5, "Placa é obrigatória").max(10),
-  vehicleType: z.string().min(1, "Tipo de veículo é obrigatório").max(30),
+  vehicleType: z.enum([VehicleType.MOTO, VehicleType.BIKE, VehicleType.CAR], {
+    message: "Tipo de veículo deve ser Moto, Bicicleta ou Carro",
+  }),
 });
 
 export type UpdateCourierInput = z.infer<typeof updateCourierSchema>;

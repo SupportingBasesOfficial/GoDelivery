@@ -121,13 +121,16 @@ export default function NewCourierPage() {
           <label className="block text-sm font-medium text-gray-700">
             Tipo de veículo
           </label>
-          <input
+          <select
             name="vehicleType"
-            type="text"
             required
-            placeholder="Moto, Bike, Carro..."
             className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
-          />
+          >
+            <option value="">Selecione...</option>
+            <option value="moto">Moto</option>
+            <option value="bike">Bicicleta</option>
+            <option value="car">Carro</option>
+          </select>
         </div>
 
         {error && (
