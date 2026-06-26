@@ -43,7 +43,8 @@ export default function DashboardScreen({ user, onProfile, onSignOut: _onSignOut
       });
   }, [user.id]);
 
-  // GPS automatico: liga com pedido ativo, desliga quando nao ha
+  // GPS automatico: liga automaticamente quando ha pedido ativo
+  // NUNCA desliga automaticamente — motoboy controla manualmente via botao
   useEffect(() => {
     const hasActiveOrder = orders.some(
       (o) => o.status === "accepted" || o.status === "collected" || o.status === "in_transit"
@@ -52,11 +53,8 @@ export default function DashboardScreen({ user, onProfile, onSignOut: _onSignOut
     if (hasActiveOrder && !tracking) {
       console.warn("[AutoGPS] Pedido ativo detectado — iniciando rastreamento");
       startTracking();
-    } else if (!hasActiveOrder && tracking) {
-      console.warn("[AutoGPS] Sem pedidos ativos — parando rastreamento");
-      stopTracking();
     }
-  }, [orders, tracking, startTracking, stopTracking]);
+  }, [orders, tracking, startTracking]);
 
   const loadOrders = useCallback(async () => {
     const { data } = await supabase

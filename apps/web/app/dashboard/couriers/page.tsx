@@ -31,16 +31,39 @@ export default function CouriersPage() {
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "couriers" },
-        (payload) => {
-          console.warn("[Couriers Realtime] UPDATE:", payload.new);
-          const updated = payload.new as CourierData;
+        async (payload) => {
+          console.warn("[Couriers Realtime] UPDATE payload:", payload);
+          const raw = payload.new as Record<string, unknown>;
+          const updatedId = raw.id as string;
+          const updatedStatus = raw.status as string;
+
+          if (!updatedId || !updatedStatus) {
+            console.warn("[Couriers Realtime] Payload incompleto, re-fetching...");
+            const result = await listCouriers();
+            if (result.ok) setCouriers(result.data);
+            return;
+          }
+
           setCouriers((prev) =>
-            prev.map((c) => (c.id === updated.id ? { ...c, ...updated } : c))
+            prev.map((c) =>
+              c.id === updatedId
+                ? { ...c, status: updatedStatus }
+                : c
+            )
           );
         }
       )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "couriers" },
+        async () => {
+          console.warn("[Couriers Realtime] INSERT detectado, re-fetching...");
+          const result = await listCouriers();
+          if (result.ok) setCouriers(result.data);
+        }
+      )
       .subscribe((status) => {
-        console.warn("[Couriers Realtime] status:", status);
+        console.warn("[Couriers Realtime] channel status:", status);
       });
 
     return () => {
