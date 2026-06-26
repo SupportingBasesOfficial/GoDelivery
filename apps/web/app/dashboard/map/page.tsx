@@ -59,8 +59,10 @@ export default function MapPage() {
       getTenantLocation(),
     ]);
     if (couriersResult.ok) {
+      console.log("[MapPage] couriers:", couriersResult.data);
       setCouriers(couriersResult.data);
     } else {
+      console.error("[MapPage] couriers error:", couriersResult.error);
       setError(couriersResult.error?.message ?? "Erro ao carregar entregadores");
     }
     if (tenantResult.ok) {
@@ -161,6 +163,8 @@ export default function MapPage() {
               <p className="text-sm text-gray-500">Carregando...</p>
             ) : error ? (
               <p className="text-sm text-red-500">{error}</p>
+            ) : couriers.length === 0 ? (
+              <p className="text-sm text-gray-500">Nenhum entregador cadastrado.</p>
             ) : (
               <div className="space-y-2">
                 {couriers.map((courier) => (
