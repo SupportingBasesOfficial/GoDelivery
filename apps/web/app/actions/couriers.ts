@@ -4,7 +4,7 @@ import { createServerClient, createAdminClient, ok, err } from "@repo/supabase";
 import type { Result } from "@repo/supabase";
 import { revalidatePath } from "next/cache";
 import { rateLimit } from "../lib/rate-limit";
-import { validate, createCourierSchema } from "./schemas";
+import { validate, createCourierSchema, updateCourierSchema } from "./schemas";
 
 export interface CourierData {
   id: string;
@@ -28,7 +28,7 @@ export interface CreateCourierData {
 }
 
 /**
- * Lista os motoboys do tenant do usuário logado.
+ * Lista os entregadores do tenant do usuário logado.
  */
 export async function listCouriers(): Promise<Result<CourierData[]>> {
   const supabase = await createServerClient();
@@ -78,7 +78,7 @@ export async function listCouriers(): Promise<Result<CourierData[]>> {
 }
 
 /**
- * Cria um novo motoboy (auth user + profile + courier record).
+ * Cria um novo entregador (auth user + profile + courier record).
  */
 export async function createCourier(data: CreateCourierData): Promise<Result<{ userId: string }>> {
   const validation = validate(createCourierSchema, data);
@@ -158,7 +158,7 @@ export async function createCourier(data: CreateCourierData): Promise<Result<{ u
   if (courierError) {
     await admin.auth.admin.deleteUser(userId);
     await admin.from("profiles").delete().eq("id", userId);
-    return err(courierError.message ?? "Falha ao criar motoboy", "courier/create-failed");
+    return err(courierError.message ?? "Falha ao criar entregador", "courier/create-failed");
   }
 
   revalidatePath("/dashboard/couriers", "page");
@@ -179,7 +179,7 @@ export interface CourierWithLocation {
 }
 
 /**
- * Lista motoboys com localização atual.
+ * Lista entregadores com localizacao atual.
  */
 export async function getCouriersWithLocation(): Promise<Result<CourierWithLocation[]>> {
   const supabase = await createServerClient();
@@ -285,4 +285,140 @@ export async function getTenantLocation(): Promise<Result<TenantLocation>> {
     lat: tenant?.latitude ?? null,
     lng: tenant?.longitude ?? null,
   });
+}
+
+/**
+ * Busca um entregador pelo ID (do mesmo tenant).
+ */
+export async function getCourier(courierId: string): Promise<Result<CourierData>> {
+  const supabase = await createServerClient();
+
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    return err("Não autenticado", "auth/unauthenticated");
+  }
+
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("tenant_id")
+    .eq("id", user.id)
+    .single();
+
+  if (profileError || !profile?.tenant_id) {
+    return err("Perfil não encontrado", "profile/not-found");
+  }
+
+  const { data: courier, error: courierError } = await supabase
+    .from("couriers")
+    .select("id, status, license_number, vehicle_plate, vehicle_type, profiles(full_name, phone)")
+    .eq("id", courierId)
+    .eq("tenant_id", profile.tenant_id)
+    .single();
+
+  if (courierError || !courier) {
+    return err("Entregador não encontrado", "courier/not-found");
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const profilesArr = (courier as any).profiles as Array<{ full_name?: string; phone?: string }> | null;
+  const p = profilesArr?.[0] ?? null;
+
+  return ok({
+    id: courier.id,
+    fullName: p?.full_name ?? "",
+    email: "", // email em auth.users
+    phone: p?.phone ?? "",
+    licenseNumber: courier.license_number ?? "",
+    vehiclePlate: courier.vehicle_plate ?? "",
+    vehicleType: courier.vehicle_type ?? "",
+    status: courier.status ?? "offline",
+  });
+}
+
+export interface UpdateCourierData {
+  id: string;
+  fullName: string;
+  phone: string;
+  licenseNumber: string;
+  vehiclePlate: string;
+  vehicleType: string;
+}
+
+/**
+ * Atualiza dados de um entregador existente (profiles + couriers).
+ */
+export async function updateCourier(data: UpdateCourierData): Promise<Result<void>> {
+  const validation = validate(updateCourierSchema, data);
+  if (!validation.success) {
+    return err(validation.errors.join("; "), "validation/invalid-input");
+  }
+
+  const supabase = await createServerClient();
+
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    return err("Não autenticado", "auth/unauthenticated");
+  }
+
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("tenant_id")
+    .eq("id", user.id)
+    .single();
+
+  if (profileError || !profile?.tenant_id) {
+    return err("Perfil não encontrado", "profile/not-found");
+  }
+
+  // Verifica se o courier pertence ao tenant
+  const { data: courierCheck, error: checkError } = await supabase
+    .from("couriers")
+    .select("id")
+    .eq("id", data.id)
+    .eq("tenant_id", profile.tenant_id)
+    .single();
+
+  if (checkError || !courierCheck) {
+    return err("Entregador não encontrado", "courier/not-found");
+  }
+
+  // Atualiza profiles
+  const { error: profileUpdateError } = await supabase
+    .from("profiles")
+    .update({
+      full_name: data.fullName.trim(),
+      phone: data.phone.trim(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", data.id);
+
+  if (profileUpdateError) {
+    return err(profileUpdateError.message, "profile/update-failed");
+  }
+
+  // Atualiza couriers
+  const { error: courierUpdateError } = await supabase
+    .from("couriers")
+    .update({
+      license_number: data.licenseNumber.trim(),
+      vehicle_plate: data.vehiclePlate.trim().toUpperCase(),
+      vehicle_type: data.vehicleType.trim().toLowerCase(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", data.id);
+
+  if (courierUpdateError) {
+    return err(courierUpdateError.message, "courier/update-failed");
+  }
+
+  revalidatePath("/dashboard/couriers", "page");
+  return ok(undefined);
 }

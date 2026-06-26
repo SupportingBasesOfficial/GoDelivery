@@ -108,7 +108,16 @@ export const createCourierSchema = z.object({
   vehicleType: z.string().min(1, "Tipo de veículo é obrigatório").max(30),
 });
 
-export type CreateCourierInput = z.infer<typeof createCourierSchema>;
+export const updateCourierSchema = z.object({
+  id: uuidSchema,
+  fullName: z.string().min(2, "Nome deve ter no mínimo 2 caracteres").max(100),
+  phone: phoneSchema,
+  licenseNumber: z.string().min(5, "Número da CNH é obrigatório").max(20),
+  vehiclePlate: z.string().min(5, "Placa é obrigatória").max(10),
+  vehicleType: z.string().min(1, "Tipo de veículo é obrigatório").max(30),
+});
+
+export type UpdateCourierInput = z.infer<typeof updateCourierSchema>;
 
 // ===========================================
 // Settings schemas

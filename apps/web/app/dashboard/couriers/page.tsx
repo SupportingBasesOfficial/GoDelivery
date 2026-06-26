@@ -86,12 +86,12 @@ export default function CouriersPage() {
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-gray-900">Motoboys</h2>
+        <h2 className="text-2xl font-bold text-gray-900">Entregadores</h2>
         <Link
           href="/dashboard/couriers/new"
           className="rounded-lg bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700"
         >
-          + Cadastrar motoboy
+          + Cadastrar entregador
         </Link>
       </div>
 
@@ -101,12 +101,12 @@ export default function CouriersPage() {
         <div className="rounded-lg bg-red-50 p-4 text-red-700">{error}</div>
       ) : couriers.length === 0 ? (
         <div className="rounded-xl bg-white p-8 text-center shadow">
-          <p className="text-gray-500">Nenhum motoboy cadastrado.</p>
+          <p className="text-gray-500">Nenhum entregador cadastrado.</p>
           <Link
             href="/dashboard/couriers/new"
             className="mt-4 inline-block rounded-lg bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700"
           >
-            Cadastrar primeiro motoboy
+            Cadastrar primeiro entregador
           </Link>
         </div>
       ) : (
@@ -125,11 +125,19 @@ export default function CouriersPage() {
                   {courier.vehiclePlate} — {courier.vehicleType}
                 </p>
               </div>
-              <span
-                className={`rounded-full px-3 py-1 text-xs font-medium ${statusColors[courier.status] || statusColors.offline}`}
-              >
-                {statusLabels[courier.status] || courier.status}
-              </span>
+              <div className="flex items-center gap-3">
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-medium ${statusColors[courier.status] || statusColors.offline}`}
+                >
+                  {statusLabels[courier.status] || courier.status}
+                </span>
+                <Link
+                  href={`/dashboard/couriers/${courier.id}/edit`}
+                  className="rounded-lg bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-200"
+                >
+                  Editar
+                </Link>
+              </div>
             </div>
           ))}
         </div>

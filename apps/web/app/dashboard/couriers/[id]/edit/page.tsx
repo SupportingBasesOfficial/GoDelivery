@@ -1,44 +1,80 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { createCourier } from "../../../actions/couriers";
+import { getCourier, updateCourier } from "../../../../actions/couriers";
+import type { CourierData } from "../../../../actions/couriers";
 
-export default function NewCourierPage() {
+export default function EditCourierPage({ params }: { params: { id: string } }) {
   const router = useRouter();
+  const courierId = params.id;
+
+  const [courier, setCourier] = useState<CourierData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+
+  const loadCourier = useCallback(async () => {
+    setLoading(true);
+    const result = await getCourier(courierId);
+    if (result.ok) {
+      setCourier(result.data);
+      setError(null);
+    } else {
+      setError(result.error?.message ?? "Erro ao carregar entregador");
+    }
+    setLoading(false);
+  }, [courierId]);
+
+  useEffect(() => {
+    loadCourier();
+  }, [loadCourier]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setLoading(true);
+    if (!courier) return;
+
+    setSaving(true);
     setError(null);
 
     const formData = new FormData(e.currentTarget);
-    const result = await createCourier({
+    const result = await updateCourier({
+      id: courierId,
       fullName: formData.get("fullName") as string,
-      email: formData.get("email") as string,
       phone: formData.get("phone") as string,
-      password: formData.get("password") as string,
       licenseNumber: formData.get("licenseNumber") as string,
       vehiclePlate: formData.get("vehiclePlate") as string,
       vehicleType: formData.get("vehicleType") as string,
     });
 
     if (!result.ok) {
-      setError(result.error?.message ?? "Erro ao cadastrar");
-      setLoading(false);
+      setError(result.error?.message ?? "Erro ao salvar");
+      setSaving(false);
       return;
     }
 
     router.push("/dashboard/couriers");
   }
 
+  if (loading) {
+    return (
+      <div className="max-w-lg">
+        <p className="text-gray-600">Carregando...</p>
+      </div>
+    );
+  }
+
+  if (error && !courier) {
+    return (
+      <div className="max-w-lg">
+        <div className="rounded-lg bg-red-50 p-4 text-red-700">{error}</div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-lg">
-      <h2 className="mb-6 text-2xl font-bold text-gray-900">
-        Cadastrar entregador
-      </h2>
+      <h2 className="mb-6 text-2xl font-bold text-gray-900">Editar entregador</h2>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
@@ -49,18 +85,7 @@ export default function NewCourierPage() {
             name="fullName"
             type="text"
             required
-            className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700">
-            Email
-          </label>
-          <input
-            name="email"
-            type="email"
-            required
+            defaultValue={courier?.fullName}
             className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
           />
         </div>
@@ -73,24 +98,9 @@ export default function NewCourierPage() {
             name="phone"
             type="tel"
             required
+            defaultValue={courier?.phone}
             className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
           />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700">
-            Senha temporária
-          </label>
-          <input
-            name="password"
-            type="password"
-            required
-            minLength={6}
-            className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
-          />
-          <p className="mt-1 text-xs text-gray-500">
-            O entregador usará essa senha para o primeiro login.
-          </p>
         </div>
 
         <div>
@@ -101,6 +111,7 @@ export default function NewCourierPage() {
             name="licenseNumber"
             type="text"
             required
+            defaultValue={courier?.licenseNumber}
             className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
           />
         </div>
@@ -113,6 +124,7 @@ export default function NewCourierPage() {
             name="vehiclePlate"
             type="text"
             required
+            defaultValue={courier?.vehiclePlate}
             className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
           />
         </div>
@@ -126,8 +138,20 @@ export default function NewCourierPage() {
             type="text"
             required
             placeholder="Moto, Bike, Carro..."
+            defaultValue={courier?.vehicleType}
             className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
           />
+        </div>
+
+        <div className="rounded-lg bg-gray-50 p-3">
+          <p className="text-sm text-gray-600">
+            <span className="font-medium">Status:</span>{" "}
+            {courier?.status === "available"
+              ? "Disponível"
+              : courier?.status === "busy"
+                ? "Em entrega"
+                : "Offline"}
+          </p>
         </div>
 
         {error && (
@@ -146,10 +170,10 @@ export default function NewCourierPage() {
           </button>
           <button
             type="submit"
-            disabled={loading}
+            disabled={saving}
             className="rounded-lg bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700 disabled:opacity-50"
           >
-            {loading ? "Cadastrando..." : "Cadastrar"}
+            {saving ? "Salvando..." : "Salvar alterações"}
           </button>
         </div>
       </form>
