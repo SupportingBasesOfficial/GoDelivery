@@ -33,22 +33,32 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- 3) Habilita pg_cron se disponivel e agenda execucao automatica
+-- 3) Garante schema cron acessivel e agenda execucao automatica
+--    pg_cron no Supabase Cloud fica no schema 'cron'
 DO $$
 BEGIN
-    CREATE EXTENSION IF NOT EXISTS pg_cron WITH SCHEMA extensions;
-    
-    PERFORM cron.schedule(
-        'mark-stale-couriers-offline',
-        '*/2 * * * *',
-        'SELECT mark_stale_couriers_offline();'
-    );
+    -- Garante que o schema cron existe e esta no search_path
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_namespace WHERE nspname = 'cron'
+    ) THEN
+        CREATE SCHEMA cron;
+    END IF;
+
+    CREATE EXTENSION IF NOT EXISTS pg_cron WITH SCHEMA cron;
 EXCEPTION
-    WHEN insufficient_privilege THEN
-        RAISE NOTICE 'pg_cron nao disponivel ou sem permissao. Job nao agendado. Habilite a extensao no Supabase Dashboard > Database > Extensions.';
+    WHEN duplicate_object THEN
+        -- Extensao ja existe em outro schema, ignora
+        NULL;
     WHEN OTHERS THEN
-        RAISE NOTICE 'Erro ao configurar pg_cron: %. Job nao agendado.', SQLERRM;
+        RAISE NOTICE 'Aviso ao garantir pg_cron: %. Continuando...', SQLERRM;
 END $$;
+
+-- Agenda o job (usa schema qualificado para evitar ambiguidade)
+SELECT cron.schedule(
+    'mark-stale-couriers-offline',
+    '*/2 * * * *',
+    'SELECT mark_stale_couriers_offline();'
+);
 
 -- ============================================================================
 -- FIM DA MIGRATION
