@@ -207,20 +207,26 @@ export function useLocation(courierId: string | null) {
     );
 
     // 2) Background: startLocationUpdatesAsync publica no Supabase mesmo com app minimizado
-    const isTaskDefined = await TaskManager.isTaskRegisteredAsync(LOCATION_TASK_NAME);
-    if (!isTaskDefined) {
-      await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
-        accuracy: Location.Accuracy.BestForNavigation,
-        timeInterval: config.timeInterval,
-        distanceInterval: config.distanceInterval,
-        foregroundService: {
-          notificationTitle: "GoDelivery GPS ativo",
-          notificationBody: "Rastreando sua localização para entregas",
-          notificationColor: "#2563EB",
-        },
-        showsBackgroundLocationIndicator: true,
-      });
-      console.warn("[GPS] Background location updates iniciado");
+    // NOTA: No Expo Go, background location NAO funciona — o catch garante que o app nao crasha
+    try {
+      const isTaskDefined = await TaskManager.isTaskRegisteredAsync(LOCATION_TASK_NAME);
+      if (!isTaskDefined) {
+        await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
+          accuracy: Location.Accuracy.BestForNavigation,
+          timeInterval: config.timeInterval,
+          distanceInterval: config.distanceInterval,
+          foregroundService: {
+            notificationTitle: "GoDelivery GPS ativo",
+            notificationBody: "Rastreando sua localização para entregas",
+            notificationColor: "#2563EB",
+          },
+          showsBackgroundLocationIndicator: true,
+        });
+        console.warn("[GPS] Background location updates iniciado");
+      }
+    } catch (bgError) {
+      console.warn("[GPS] Background tracking indisponivel (Expo Go?):", (bgError as Error).message);
+      // Continua normalmente com foreground tracking
     }
   }, [courierId, publishLocation]);
 
@@ -232,10 +238,14 @@ export function useLocation(courierId: string | null) {
     }
 
     // Para background
-    const isTaskDefined = await TaskManager.isTaskRegisteredAsync(LOCATION_TASK_NAME);
-    if (isTaskDefined) {
-      await Location.stopLocationUpdatesAsync(LOCATION_TASK_NAME);
-      console.warn("[GPS] Background location updates parado");
+    try {
+      const isTaskDefined = await TaskManager.isTaskRegisteredAsync(LOCATION_TASK_NAME);
+      if (isTaskDefined) {
+        await Location.stopLocationUpdatesAsync(LOCATION_TASK_NAME);
+        console.warn("[GPS] Background location updates parado");
+      }
+    } catch (bgError) {
+      console.warn("[GPS] Nao conseguiu parar background tracking:", (bgError as Error).message);
     }
 
     setTracking(false);
@@ -271,7 +281,13 @@ export function useLocation(courierId: string | null) {
         courier?.last_location_at &&
         Date.now() - new Date(courier.last_location_at).getTime() < 10 * 60 * 1000;
 
-      const isBgTaskRunning = await TaskManager.isTaskRegisteredAsync(LOCATION_TASK_NAME);
+      let isBgTaskRunning = false;
+      try {
+        isBgTaskRunning = await TaskManager.isTaskRegisteredAsync(LOCATION_TASK_NAME);
+      } catch {
+        // No Expo Go, TaskManager pode nao estar disponivel — fallback para false
+        isBgTaskRunning = false;
+      }
 
       if (wasRecentlyActive && !subscriptionRef.current && !isBgTaskRunning) {
         console.warn("[GPS] Restaurando tracking apos remontagem");
