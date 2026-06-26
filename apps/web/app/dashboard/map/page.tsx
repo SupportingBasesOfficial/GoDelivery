@@ -43,12 +43,12 @@ function formatDate(dateStr: string | null) {
 }
 
 /**
- * Retorna true se a ultima localizacao for mais antiga que o threshold (10 min).
+ * Retorna true se a ultima localizacao for mais antiga que o threshold (2 min).
  * Usado para tratar entregadores que ficaram stale (app fechou/crashou) como offline.
  */
 function isLocationStale(lastLocationAt: string | null): boolean {
   if (!lastLocationAt) return true;
-  const STALE_THRESHOLD_MS = 10 * 60 * 1000; // 10 minutos
+  const STALE_THRESHOLD_MS = 2 * 60 * 1000; // 2 minutos
   return Date.now() - new Date(lastLocationAt).getTime() > STALE_THRESHOLD_MS;
 }
 
@@ -260,7 +260,7 @@ export default function MapPage() {
                     ) : (
                       <p className="mt-1 text-xs text-orange-500">
                         {getEffectiveStatus(courier) === "offline"
-                          ? "Offline — sem localização ativa"
+                          ? courier.statusReason ?? "Offline — sem localização ativa"
                           : courier.lat && courier.lng
                             ? "Localização desatualizada"
                             : "Sem localização registrada"}

@@ -176,6 +176,7 @@ export interface CourierWithLocation {
   lat: number | null;
   lng: number | null;
   lastLocationAt: string | null;
+  statusReason: string | null;
 }
 
 /**
@@ -207,7 +208,7 @@ export async function getCouriersWithLocation(): Promise<Result<CourierWithLocat
     .from("couriers")
     .select(
       `
-      id, status, vehicle_type, vehicle_plate,
+      id, status, status_reason, vehicle_type, vehicle_plate,
       current_location_lat, current_location_lng, last_location_at,
       profiles (full_name, phone)
       `,
@@ -226,6 +227,7 @@ export async function getCouriersWithLocation(): Promise<Result<CourierWithLocat
     email: "",
     phone: c.profiles?.phone ?? "",
     status: c.status ?? "offline",
+    statusReason: c.status_reason ?? null,
     vehicleType: c.vehicle_type ?? null,
     vehiclePlate: c.vehicle_plate ?? null,
     lat: c.current_location_lat ?? null,

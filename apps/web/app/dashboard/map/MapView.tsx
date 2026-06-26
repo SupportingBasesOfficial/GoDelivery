@@ -96,7 +96,7 @@ function MapCenterUpdater({
 
 function isLocationStale(lastLocationAt: string | null): boolean {
   if (!lastLocationAt) return true;
-  const STALE_THRESHOLD_MS = 10 * 60 * 1000; // 10 minutos
+  const STALE_THRESHOLD_MS = 2 * 60 * 1000; // 2 minutos
   return Date.now() - new Date(lastLocationAt).getTime() > STALE_THRESHOLD_MS;
 }
 
