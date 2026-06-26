@@ -6,6 +6,7 @@ import {
   updateTenantSettings,
   getTenantLocation,
   updateTenantLocation,
+  geocodeAddress,
 } from "../../actions/settings";
 import type { FeeRange, TenantLocationData } from "../../actions/settings";
 
@@ -130,7 +131,7 @@ export default function SettingsPage() {
     setSaving(false);
   }
 
-  async function geocodeAddress() {
+  async function handleGeocode() {
     const query = toAddressString(address);
     if (!address.street || !address.city) {
       setError("Preencha pelo menos rua e cidade para buscar coordenadas");
@@ -139,26 +140,19 @@ export default function SettingsPage() {
 
     setGeocoding(true);
     setError(null);
-    try {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`,
-        { headers: { "User-Agent": "GoDelivery/1.0" } }
-      );
-      const data = await res.json();
-      if (data && data.length > 0) {
-        const lat = parseFloat(data[0].lat);
-        const lon = parseFloat(data[0].lon);
-        setTenantLocation((prev) => ({
-          ...prev,
-          latitude: lat,
-          longitude: lon,
-        }));
-      } else {
-        setError("Endereço não encontrado. Tente adicionar mais detalhes.");
-      }
-    } catch {
-      setError("Erro ao buscar coordenadas. Tente novamente.");
+
+    const result = await geocodeAddress(query);
+
+    if (result.ok) {
+      setTenantLocation((prev) => ({
+        ...prev,
+        latitude: result.data.latitude,
+        longitude: result.data.longitude,
+      }));
+    } else {
+      setError(result.error?.message ?? "Erro ao buscar coordenadas");
     }
+
     setGeocoding(false);
   }
 
@@ -360,7 +354,7 @@ export default function SettingsPage() {
         <div className="flex items-center gap-3">
           <button
             type="button"
-            onClick={geocodeAddress}
+            onClick={handleGeocode}
             disabled={geocoding}
             className="rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 disabled:opacity-50"
           >

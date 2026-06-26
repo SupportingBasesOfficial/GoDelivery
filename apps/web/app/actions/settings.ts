@@ -186,3 +186,35 @@ export async function updateTenantLocation(
 
   return ok(undefined);
 }
+
+export interface GeocodeResult {
+  latitude: number;
+  longitude: number;
+}
+
+/**
+ * Geocodifica um endereco via Nominatim (server-side para evitar CSP).
+ */
+export async function geocodeAddress(
+  address: string,
+): Promise<Result<GeocodeResult>> {
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`,
+      { headers: { "User-Agent": "GoDelivery/1.0" } },
+    );
+    const data = (await res.json()) as Array<{
+      lat: string;
+      lon: string;
+    }>;
+    if (data && data.length > 0) {
+      return ok({
+        latitude: parseFloat(data[0].lat),
+        longitude: parseFloat(data[0].lon),
+      });
+    }
+    return err("Endereco nao encontrado", "geocode/not-found");
+  } catch {
+    return err("Erro ao geocodificar endereco", "geocode/failed");
+  }
+}
