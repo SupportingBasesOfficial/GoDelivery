@@ -58,6 +58,11 @@ export default function MapPage() {
     }
     if (tenantResult.ok) {
       setTenantLocation(tenantResult.data);
+    } else {
+      console.error("[MapPage] getTenantLocation failed:", tenantResult.error);
+      setError((prev) =>
+        prev ? prev + " | " + (tenantResult.error?.message ?? "Erro ao carregar localização") : tenantResult.error?.message ?? "Erro ao carregar localização"
+      );
     }
     setLoading(false);
   }

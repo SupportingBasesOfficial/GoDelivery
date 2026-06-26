@@ -274,8 +274,11 @@ export async function getTenantLocation(): Promise<Result<TenantLocation>> {
     .single();
 
   if (tenantError) {
+    console.error("[getTenantLocation] tenantError:", tenantError);
     return err(tenantError.message, "tenant/fetch-failed");
   }
+
+  console.log("[getTenantLocation] tenant:", tenant);
 
   return ok({
     address: tenant?.address ?? null,

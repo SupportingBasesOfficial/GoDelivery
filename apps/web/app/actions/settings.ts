@@ -3,6 +3,7 @@
 import { createServerClient, ok, err } from "@repo/supabase";
 import type { Result, Json } from "@repo/supabase";
 import { validate, tenantSettingsSchema } from "./schemas";
+import { revalidatePath } from "next/cache";
 
 export interface FeeRange {
   minKm: number;
@@ -183,6 +184,9 @@ export async function updateTenantLocation(
   if (error) {
     return err(error.message, "tenant/update-failed");
   }
+
+  revalidatePath("/dashboard/map");
+  revalidatePath("/dashboard/settings");
 
   return ok(undefined);
 }

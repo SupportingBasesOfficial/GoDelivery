@@ -1,7 +1,8 @@
 "use client";
 
-import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import { Icon } from "leaflet";
+import { useEffect } from "react";
 import type { CourierWithLocation, TenantLocation } from "../../actions/couriers";
 
 const courierIcon = new Icon({
@@ -47,6 +48,21 @@ interface MapViewProps {
   tenantLocation: TenantLocation | null;
 }
 
+// Atualiza o centro do mapa quando os dados mudam (react-leaflet nao reage a prop center apos mount)
+function MapCenterUpdater({
+  center,
+  zoom = 13,
+}: {
+  center: [number, number];
+  zoom?: number;
+}) {
+  const map = useMap();
+  useEffect(() => {
+    map.setView(center, zoom);
+  }, [center, zoom, map]);
+  return null;
+}
+
 export default function MapView({ couriers, tenantLocation }: MapViewProps) {
   const onlineCouriers = couriers.filter(
     (c) => c.status !== "offline" && c.lat && c.lng
@@ -73,6 +89,7 @@ export default function MapView({ couriers, tenantLocation }: MapViewProps) {
       zoom={13}
       className="h-full w-full"
     >
+      <MapCenterUpdater center={[centerLat, centerLng]} />
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
