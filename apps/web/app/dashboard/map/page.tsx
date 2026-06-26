@@ -214,7 +214,7 @@ export default function MapPage() {
                       {statusLabels[courier.status] || courier.status}
                       {courier.vehicleType && ` · ${courier.vehicleType}`}
                     </p>
-                    {courier.lat && courier.lng ? (
+                    {courier.lat && courier.lng && courier.status !== "offline" ? (
                       <div className="mt-1 flex items-center gap-2">
                         <p className="text-xs text-gray-400">
                           Atualizado: {formatDate(courier.lastLocationAt)}
@@ -230,8 +230,10 @@ export default function MapPage() {
                     ) : (
                       <p className="mt-1 text-xs text-orange-500">
                         {courier.status === "offline"
-                          ? "Offline — sem localização"
-                          : "GPS inativo — aguardando pedido"}
+                          ? "Offline — sem localização ativa"
+                          : courier.lat && courier.lng
+                            ? "Localização desatualizada"
+                            : "Sem localização registrada"}
                       </p>
                     )}
                   </div>

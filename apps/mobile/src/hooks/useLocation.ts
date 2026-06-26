@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Alert } from "react-native";
+import { Alert, AppState } from "react-native";
 import * as Location from "expo-location";
 import { supabase } from "../lib/supabase";
 
@@ -157,13 +157,52 @@ export function useLocation(courierId: string | null) {
     }
   }, [courierId]);
 
+  // Restaura estado de tracking ao montar e gerencia AppState
   useEffect(() => {
+    let isMounted = true;
+
+    async function restoreTracking() {
+      if (!courierId) return;
+      const { data: courier } = await supabase
+        .from("couriers")
+        .select("status, last_location_at")
+        .eq("id", courierId)
+        .single();
+
+      if (!isMounted) return;
+
+      // Se courier estava online recentemente (< 10min), assume que tracking deveria estar ativo
+      const wasRecentlyActive =
+        courier?.status !== "offline" &&
+        courier?.last_location_at &&
+        Date.now() - new Date(courier.last_location_at).getTime() < 10 * 60 * 1000;
+
+      if (wasRecentlyActive && !subscriptionRef.current) {
+        console.warn("[GPS] Restaurando tracking apos remontagem");
+        await startTracking();
+      }
+    }
+
+    restoreTracking();
+
+    // Quando app vai para background, seta offline no banco
+    const subscription = AppState.addEventListener("change", (nextAppState) => {
+      if (nextAppState === "background") {
+        console.warn("[GPS] App foi para background — parando tracking");
+        stopTracking();
+      }
+    });
+
     return () => {
+      isMounted = false;
+      subscription.remove();
+      // Garante que ao desmontar o componente, o courier fica offline no banco
       if (subscriptionRef.current) {
-        subscriptionRef.current.remove();
+        console.warn("[GPS] Componente desmontado — parando tracking");
+        stopTracking();
       }
     };
-  }, []);
+  }, [courierId, startTracking, stopTracking]);
 
   return { location, error, tracking, startTracking, stopTracking };
 }
