@@ -152,7 +152,7 @@ export default function MapPage() {
                         className={`h-2 w-2 rounded-full ${statusColors[courier.status] || "bg-gray-400"}`}
                       />
                       <span className="font-medium text-gray-900">
-                        {courier.fullName || courier.email}
+                        {courier.fullName || courier.phone || courier.vehiclePlate || "Motoboy"}
                       </span>
                     </div>
                     <p className="mt-1 text-xs text-gray-500">

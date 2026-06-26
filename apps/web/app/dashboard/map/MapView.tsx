@@ -101,12 +101,15 @@ export default function MapView({ couriers, tenantLocation }: MapViewProps) {
         >
           <Popup>
             <div className="text-sm">
-              <p className="font-semibold">{courier.fullName || courier.email}</p>
+              <p className="font-semibold">{courier.fullName || courier.phone || courier.vehiclePlate || "Motoboy"}</p>
               <p className="text-gray-600">
                 {statusLabels[courier.status] || courier.status}
               </p>
               {courier.vehicleType && (
                 <p className="text-gray-500">{courier.vehicleType}</p>
+              )}
+              {courier.vehiclePlate && (
+                <p className="text-gray-500 text-xs">Placa: {courier.vehiclePlate}</p>
               )}
               <p className="mt-1 text-xs text-gray-400">
                 Atualizado: {formatDate(courier.lastLocationAt)}

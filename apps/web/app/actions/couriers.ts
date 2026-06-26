@@ -169,6 +169,7 @@ export interface CourierWithLocation {
   id: string;
   fullName: string;
   email?: string;
+  phone: string;
   status: string;
   vehicleType: string | null;
   vehiclePlate: string | null;
@@ -208,7 +209,7 @@ export async function getCouriersWithLocation(): Promise<Result<CourierWithLocat
       `
       id, status, vehicle_type, vehicle_plate,
       current_location_lat, current_location_lng, last_location_at,
-      profiles (full_name)
+      profiles (full_name, phone)
       `,
     )
     .eq("tenant_id", profile.tenant_id)
@@ -223,6 +224,7 @@ export async function getCouriersWithLocation(): Promise<Result<CourierWithLocat
     id: c.id,
     fullName: c.profiles?.full_name ?? "",
     email: "",
+    phone: c.profiles?.phone ?? "",
     status: c.status ?? "offline",
     vehicleType: c.vehicle_type ?? null,
     vehiclePlate: c.vehicle_plate ?? null,
