@@ -33,13 +33,22 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- 3) Agenda execucao automatica a cada 2 minutos via pg_cron
---    (disponivel por padrao no Supabase Cloud)
-SELECT cron.schedule(
-    'mark-stale-couriers-offline',  -- nome do job
-    '*/2 * * * *',                  -- a cada 2 minutos
-    'SELECT mark_stale_couriers_offline();'
-);
+-- 3) Habilita pg_cron se disponivel e agenda execucao automatica
+DO $$
+BEGIN
+    CREATE EXTENSION IF NOT EXISTS pg_cron WITH SCHEMA extensions;
+    
+    PERFORM cron.schedule(
+        'mark-stale-couriers-offline',
+        '*/2 * * * *',
+        'SELECT mark_stale_couriers_offline();'
+    );
+EXCEPTION
+    WHEN insufficient_privilege THEN
+        RAISE NOTICE 'pg_cron nao disponivel ou sem permissao. Job nao agendado. Habilite a extensao no Supabase Dashboard > Database > Extensions.';
+    WHEN OTHERS THEN
+        RAISE NOTICE 'Erro ao configurar pg_cron: %. Job nao agendado.', SQLERRM;
+END $$;
 
 -- ============================================================================
 -- FIM DA MIGRATION
