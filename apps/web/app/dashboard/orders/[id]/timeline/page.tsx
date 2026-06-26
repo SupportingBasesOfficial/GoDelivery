@@ -3,8 +3,11 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { createClient } from "@repo/supabase/client";
 import { getOrderWithTimeline } from "../../../../actions/orders";
 import type { OrderWithTimeline, OrderEvent } from "../../../../actions/orders";
+
+const supabase = createClient();
 
 const eventLabels: Record<string, string> = {
   created: "Pedido criado",
@@ -64,6 +67,7 @@ export default function OrderTimelinePage() {
   const [order, setOrder] = useState<OrderWithTimeline | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [connectionStatus, setConnectionStatus] = useState("conectando...");
 
   useEffect(() => {
     async function load() {
@@ -77,6 +81,65 @@ export default function OrderTimelinePage() {
       setLoading(false);
     }
     load();
+
+    // Realtime: novos eventos de auditoria
+    const eventsChannel = supabase
+      .channel(`order_events:${orderId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "order_events",
+          filter: `order_id=eq.${orderId}`,
+        },
+        (payload) => {
+          const newEvent = payload.new as OrderEvent;
+          setOrder((prev) => {
+            if (!prev) return prev;
+            return {
+              ...prev,
+              timeline: [...prev.timeline, newEvent],
+            };
+          });
+        }
+      )
+      .subscribe((status) => {
+        setConnectionStatus(status === "SUBSCRIBED" ? "conectado" : status);
+      });
+
+    // Realtime: atualizacoes do proprio pedido (status, valores, etc)
+    const ordersChannel = supabase
+      .channel(`order:${orderId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "orders",
+          filter: `id=eq.${orderId}`,
+        },
+        (payload) => {
+          const raw = payload.new as Record<string, unknown>;
+          setOrder((prev) => {
+            if (!prev) return prev;
+            return {
+              ...prev,
+              status: (raw.status as OrderWithTimeline["status"]) ?? prev.status,
+              order_value: (raw.order_value as number) ?? prev.order_value,
+              delivery_fee: (raw.delivery_fee as number) ?? prev.delivery_fee,
+            };
+          });
+        }
+      )
+      .subscribe((status) => {
+        setConnectionStatus(status === "SUBSCRIBED" ? "conectado" : status);
+      });
+
+    return () => {
+      supabase.removeChannel(eventsChannel);
+      supabase.removeChannel(ordersChannel);
+    };
   }, [orderId]);
 
   if (loading) return <p className="text-gray-600">Carregando auditoria...</p>;
@@ -92,12 +155,18 @@ export default function OrderTimelinePage() {
             Cliente: <strong>{order.customer_name}</strong> — {order.customer_phone}
           </p>
         </div>
-        <Link
-          href="/dashboard/orders"
-          className="rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200"
-        >
-          ← Voltar aos pedidos
-        </Link>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <span className={`inline-block h-2 w-2 rounded-full ${connectionStatus === "conectado" ? "bg-green-500" : "bg-red-500 animate-pulse"}`} />
+            <span className="text-xs text-gray-500">Realtime: {connectionStatus}</span>
+          </div>
+          <Link
+            href="/dashboard/orders"
+            className="rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200"
+          >
+            ← Voltar aos pedidos
+          </Link>
+        </div>
       </div>
 
       {/* Resumo do pedido */}
