@@ -5,7 +5,7 @@ import {
   getAllTenants,
   getAllOrders,
   getAllPayments,
-  getOrderStatusHistory,
+  getOrderEvents,
 } from "../../actions/admin";
 import AdminClient from "./AdminClient";
 
@@ -20,7 +20,7 @@ export default async function AdminPage() {
     getAllTenants(),
     getAllOrders(),
     getAllPayments(),
-    getOrderStatusHistory(),
+    getOrderEvents(),
   ]);
 
   return (

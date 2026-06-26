@@ -10,7 +10,7 @@ import type {
   TenantAdmin,
   AdminOrder,
   AdminPayment,
-  StatusHistoryEntry,
+  OrderEventEntry,
 } from "../../actions/admin";
 
 interface AdminClientProps {
@@ -18,7 +18,7 @@ interface AdminClientProps {
   initialTenants: TenantAdmin[];
   initialOrders: AdminOrder[];
   initialPayments: AdminPayment[];
-  initialHistory: StatusHistoryEntry[];
+  initialHistory: OrderEventEntry[];
 }
 
 const tabs = [
@@ -40,6 +40,13 @@ const statusLabels: Record<string, string> = {
   delivered: "Entregue",
   rejected: "Recusado",
   cancelled: "Cancelado",
+  created: "Criado",
+  assigned: "Atribuído",
+  reassigned: "Reatribuído",
+  courier_notified: "Notificado",
+  route_started: "Rota iniciada",
+  route_ended: "Rota finalizada",
+  location_updated: "Localização atualizada",
 };
 
 const statusColors: Record<string, string> = {
@@ -51,6 +58,13 @@ const statusColors: Record<string, string> = {
   delivered: "bg-green-100 text-green-700",
   rejected: "bg-red-100 text-red-700",
   cancelled: "bg-gray-100 text-gray-500",
+  created: "bg-gray-100 text-gray-600",
+  assigned: "bg-cyan-100 text-cyan-700",
+  reassigned: "bg-orange-100 text-orange-700",
+  courier_notified: "bg-yellow-100 text-yellow-600",
+  route_started: "bg-teal-100 text-teal-700",
+  route_ended: "bg-teal-100 text-teal-700",
+  location_updated: "bg-slate-100 text-slate-700",
 };
 
 export default function AdminClient({
@@ -357,9 +371,9 @@ export default function AdminClient({
                   <td className="px-4 py-3 font-mono text-xs text-gray-600">{h.order_id}</td>
                   <td className="px-4 py-3">
                     <span
-                      className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${statusColors[h.status] ?? "bg-gray-100 text-gray-700"}`}
+                      className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${statusColors[h.event_type] ?? "bg-gray-100 text-gray-700"}`}
                     >
-                      {statusLabels[h.status] ?? h.status}
+                      {statusLabels[h.event_type] ?? h.event_type}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-gray-600">{h.notes ?? "—"}</td>
