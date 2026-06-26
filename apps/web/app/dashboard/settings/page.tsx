@@ -9,6 +9,33 @@ import {
 } from "../../actions/settings";
 import type { FeeRange, TenantLocationData } from "../../actions/settings";
 
+// Interface para endereço estruturado
+interface AddressInput {
+  street: string;
+  number: string;
+  neighborhood: string;
+  city: string;
+  state: string;
+  zipCode: string;
+}
+
+function toAddressInput(location: TenantLocationData): AddressInput {
+  // Tenta extrair partes do endereço existente
+  const parts = location.address?.split(",") ?? ["", "", "", "", "", ""];
+  return {
+    street: parts[0]?.trim() ?? "",
+    number: parts[1]?.trim() ?? "",
+    neighborhood: parts[2]?.trim() ?? "",
+    city: parts[3]?.trim() ?? "",
+    state: parts[4]?.trim() ?? "",
+    zipCode: parts[5]?.trim() ?? "",
+  };
+}
+
+function toAddressString(addr: AddressInput): string {
+  return `${addr.street}, ${addr.number}, ${addr.neighborhood}, ${addr.city}, ${addr.state}, ${addr.zipCode}`;
+}
+
 interface FeeRangeInput {
   minKm: string;
   maxKm: string;
@@ -38,6 +65,15 @@ export default function SettingsPage() {
     latitude: null,
     longitude: null,
   });
+  const [address, setAddress] = useState<AddressInput>({
+    street: "",
+    number: "",
+    neighborhood: "",
+    city: "",
+    state: "",
+    zipCode: "",
+  });
+  const [geocoding, setGeocoding] = useState(false);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -57,6 +93,7 @@ export default function SettingsPage() {
       }
       if (locationResult.ok) {
         setTenantLocation(locationResult.data);
+        setAddress(toAddressInput(locationResult.data));
       }
       setLoading(false);
     }
@@ -93,18 +130,47 @@ export default function SettingsPage() {
     setSaving(false);
   }
 
+  async function geocodeAddress() {
+    const query = toAddressString(address);
+    if (!address.street || !address.city) {
+      setError("Preencha pelo menos rua e cidade para buscar coordenadas");
+      return;
+    }
+
+    setGeocoding(true);
+    setError(null);
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`,
+        { headers: { "User-Agent": "GoDelivery/1.0" } }
+      );
+      const data = await res.json();
+      if (data && data.length > 0) {
+        const lat = parseFloat(data[0].lat);
+        const lon = parseFloat(data[0].lon);
+        setTenantLocation((prev) => ({
+          ...prev,
+          latitude: lat,
+          longitude: lon,
+        }));
+      } else {
+        setError("Endereço não encontrado. Tente adicionar mais detalhes.");
+      }
+    } catch {
+      setError("Erro ao buscar coordenadas. Tente novamente.");
+    }
+    setGeocoding(false);
+  }
+
   async function handleSaveLocation() {
     setSaving(true);
     setError(null);
     setSuccess(false);
 
-    const lat = tenantLocation.latitude;
-    const lng = tenantLocation.longitude;
-
     const result = await updateTenantLocation({
-      address: tenantLocation.address,
-      latitude: lat !== null && !isNaN(lat) ? lat : null,
-      longitude: lng !== null && !isNaN(lng) ? lng : null,
+      address: toAddressString(address),
+      latitude: tenantLocation.latitude,
+      longitude: tenantLocation.longitude,
     });
 
     if (!result.ok) {
@@ -225,64 +291,87 @@ export default function SettingsPage() {
 
       <div className="space-y-4 rounded-xl bg-white p-6 shadow">
         <p className="text-sm text-gray-600">
-          Defina o endereço e coordenadas do seu estabelecimento para centralizar o mapa automaticamente.
+          Informe o endereço do seu estabelecimento. As coordenadas serão buscadas automaticamente.
         </p>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700">
-            Endereço
-          </label>
-          <input
-            type="text"
-            value={tenantLocation.address}
-            onChange={(e) =>
-              setTenantLocation((prev) => ({
-                ...prev,
-                address: e.target.value,
-              }))
-            }
-            placeholder="Rua Exemplo, 123 - Bairro, Cidade/UF"
-            className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
-          />
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="sm:col-span-2">
+            <label className="block text-sm font-medium text-gray-700">Rua</label>
+            <input
+              type="text"
+              value={address.street}
+              onChange={(e) => setAddress((prev) => ({ ...prev, street: e.target.value }))}
+              placeholder="Av. Paulista"
+              className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Número</label>
+            <input
+              type="text"
+              value={address.number}
+              onChange={(e) => setAddress((prev) => ({ ...prev, number: e.target.value }))}
+              placeholder="1000"
+              className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Bairro</label>
+            <input
+              type="text"
+              value={address.neighborhood}
+              onChange={(e) => setAddress((prev) => ({ ...prev, neighborhood: e.target.value }))}
+              placeholder="Bela Vista"
+              className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Cidade</label>
+            <input
+              type="text"
+              value={address.city}
+              onChange={(e) => setAddress((prev) => ({ ...prev, city: e.target.value }))}
+              placeholder="São Paulo"
+              className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Estado</label>
+            <input
+              type="text"
+              value={address.state}
+              onChange={(e) => setAddress((prev) => ({ ...prev, state: e.target.value }))}
+              placeholder="SP"
+              className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">CEP</label>
+            <input
+              type="text"
+              value={address.zipCode}
+              onChange={(e) => setAddress((prev) => ({ ...prev, zipCode: e.target.value }))}
+              placeholder="01310-100"
+              className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+            />
+          </div>
         </div>
 
-        <div className="flex gap-3">
-          <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700">
-              Latitude
-            </label>
-            <input
-              type="text"
-              inputMode="decimal"
-              value={tenantLocation.latitude ?? ""}
-              onChange={(e) =>
-                setTenantLocation((prev) => ({
-                  ...prev,
-                  latitude: e.target.value === "" ? null : parseFloat(e.target.value),
-                }))
-              }
-              placeholder="-23.5505"
-              className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
-            />
-          </div>
-          <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700">
-              Longitude
-            </label>
-            <input
-              type="text"
-              inputMode="decimal"
-              value={tenantLocation.longitude ?? ""}
-              onChange={(e) =>
-                setTenantLocation((prev) => ({
-                  ...prev,
-                  longitude: e.target.value === "" ? null : parseFloat(e.target.value),
-                }))
-              }
-              placeholder="-46.6333"
-              className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
-            />
-          </div>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={geocodeAddress}
+            disabled={geocoding}
+            className="rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 disabled:opacity-50"
+          >
+            {geocoding ? "Buscando..." : "Buscar coordenadas"}
+          </button>
+
+          {tenantLocation.latitude !== null && tenantLocation.longitude !== null && (
+            <span className="text-sm text-green-600">
+              Lat: {tenantLocation.latitude.toFixed(5)}, Lng: {tenantLocation.longitude.toFixed(5)}
+            </span>
+          )}
         </div>
 
         <button
