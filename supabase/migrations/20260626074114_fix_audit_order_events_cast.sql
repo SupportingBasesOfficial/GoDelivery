@@ -1,5 +1,5 @@
--- Trigger unificado de auditoria: popula order_events a cada mudança de status
--- Substitui/amplia o audit_order_status() com dados mais ricos (actor, metadata)
+-- Corrige audit_order_events: mapeia order_status -> order_event_type manualmente
+-- Cast direto entre enums distintos falha no PostgreSQL
 
 CREATE OR REPLACE FUNCTION audit_order_events()
 RETURNS TRIGGER AS $$
@@ -11,8 +11,7 @@ BEGIN
     -- Determina o tenant_id do pedido
     v_tenant_id := NEW.tenant_id;
 
-    -- Determina o role do actor que fez a mudança
-    -- auth.uid() pode ser courier, business_owner ou admin
+    -- Determina o role do actor que fez a mudanca
     SELECT role INTO v_actor_role
     FROM profiles
     WHERE id = auth.uid()
@@ -22,7 +21,7 @@ BEGIN
         v_actor_role := 'system';
     END IF;
 
-    -- Mapeia order_status -> order_event_type (cast direto entre enums distintos falha)
+    -- Mapeia order_status -> order_event_type
     CASE NEW.status
         WHEN 'pending' THEN
             v_event_type := 'created';
@@ -87,13 +86,3 @@ BEGIN
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
-
--- Remove trigger antigo de order_status_history (mantém a tabela para compatibilidade)
-DROP TRIGGER IF EXISTS trg_audit_order_status ON orders;
-
--- Cria novo trigger unificado
-CREATE TRIGGER trg_audit_order_events
-    AFTER UPDATE ON orders
-    FOR EACH ROW
-    WHEN (OLD.status IS DISTINCT FROM NEW.status)
-    EXECUTE FUNCTION audit_order_events();
