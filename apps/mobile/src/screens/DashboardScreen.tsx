@@ -44,7 +44,7 @@ export default function DashboardScreen({ user, onProfile, onSignOut: _onSignOut
   }, [user.id]);
 
   // GPS automatico: liga automaticamente quando ha pedido ativo
-  // NUNCA desliga automaticamente — motoboy controla manualmente via botao
+  // NUNCA desliga automaticamente — entregador controla manualmente via botao
   useEffect(() => {
     const hasActiveOrder = orders.some(
       (o) => o.status === "accepted" || o.status === "collected" || o.status === "in_transit"

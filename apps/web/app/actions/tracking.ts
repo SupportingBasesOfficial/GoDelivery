@@ -58,7 +58,7 @@ function haversineDistance(
 
 /**
  * Estima tempo de entrega em minutos.
- * Velocidade média de motoboy urbano: ~25 km/h.
+ * Velocidade média de entregador urbano: ~25 km/h.
  */
 function estimateDeliveryMinutes(distanceKm: number): number {
   const avgSpeedKmh = 25;

@@ -26,7 +26,7 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>GoDelivery Courier</Text>
-      <Text style={styles.subtitle}>App do motoboy</Text>
+      <Text style={styles.subtitle}>App do entregador</Text>
 
       <TextInput
         style={styles.input}

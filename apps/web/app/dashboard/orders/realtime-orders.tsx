@@ -15,7 +15,7 @@ interface RealtimeOrdersProps {
 
 const statusLabels: Record<string, string> = {
   draft: "Rascunho",
-  pending_courier: "Aguardando motoboy",
+  pending_courier: "Aguardando entregador",
   accepted: "Aceito",
   collected: "Coletado",
   in_transit: "Em rota",
@@ -78,9 +78,19 @@ export default function RealtimeOrders({ initialOrders, couriers: initialCourier
         { event: "UPDATE", schema: "public", table: "couriers" },
         (payload) => {
           console.warn("[Realtime] Courier UPDATE:", payload.new);
-          const updated = payload.new as { id: string; status: string };
+          const updated = payload.new as Record<string, unknown>;
           setCouriers((prev) =>
-            prev.map((c) => (c.id === updated.id ? { ...c, status: updated.status } : c))
+            prev.map((c) =>
+              c.id === updated.id
+                ? {
+                    ...c,
+                    status: (updated.status as string) ?? c.status,
+                    licenseNumber: (updated.license_number as string) ?? c.licenseNumber,
+                    vehiclePlate: (updated.vehicle_plate as string) ?? c.vehiclePlate,
+                    vehicleType: (updated.vehicle_type as string) ?? c.vehicleType,
+                  }
+                : c
+            )
           );
         }
       )
@@ -89,10 +99,36 @@ export default function RealtimeOrders({ initialOrders, couriers: initialCourier
         setConnectionStatus(status === "SUBSCRIBED" ? "conectado" : status);
       });
 
+    const profilesChannel = supabase
+      .channel("profiles_changes")
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "profiles" },
+        (payload) => {
+          const raw = payload.new as Record<string, unknown>;
+          const updatedId = raw.id as string;
+          if (!updatedId) return;
+
+          setCouriers((prev) =>
+            prev.map((c) =>
+              c.id === updatedId
+                ? {
+                    ...c,
+                    fullName: (raw.full_name as string) ?? c.fullName,
+                    phone: (raw.phone as string) ?? c.phone,
+                  }
+                : c
+            )
+          );
+        }
+      )
+      .subscribe();
+
     return () => {
       console.warn("[Realtime] Removendo channels");
       supabase.removeChannel(ordersChannel);
       supabase.removeChannel(couriersChannel);
+      supabase.removeChannel(profilesChannel);
     };
   }, []);
 
@@ -161,7 +197,7 @@ export default function RealtimeOrders({ initialOrders, couriers: initialCourier
 
       {/* DEBUG: Remover depois */}
       <div className="bg-yellow-100 border border-yellow-300 px-4 py-1 text-xs text-yellow-800">
-        DEBUG: RealtimeOrders renderizado | Status: {connectionStatus} | Pedidos: {orders.length} | Motoboys: {couriers.length}
+        DEBUG: RealtimeOrders renderizado | Status: {connectionStatus} | Pedidos: {orders.length} | Entregadores: {couriers.length}
       </div>
       <div className="flex items-center justify-end border-b border-gray-100 bg-gray-50 px-4 py-2">
         <span className={`inline-block h-2 w-2 rounded-full mr-2 ${connectionStatus === "conectado" ? "bg-green-500" : "bg-red-500 animate-pulse"}`} />
@@ -211,7 +247,7 @@ export default function RealtimeOrders({ initialOrders, couriers: initialCourier
                 )}
                 {order.status === "pending_courier" && !order.courier_notified_at && (
                   <div className="mt-1 text-[10px] text-orange-600">
-                    Motoboy ainda nao notificado
+                    Entregador ainda nao notificado
                   </div>
                 )}
               </td>

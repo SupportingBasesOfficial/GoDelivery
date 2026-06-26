@@ -28,7 +28,7 @@ export default function OrderActions({ orderId, status, couriers }: OrderActions
       if (!result.ok) {
         setError(result.error?.message ?? "Erro");
       } else {
-        setPushMsg(result.data?.pushStatus === "notificacao-enviada" ? "Motoboy notificado!" : `Push: ${result.data?.pushStatus ?? "n/a"}`);
+        setPushMsg(result.data?.pushStatus === "notificacao-enviada" ? "Entregador notificado!" : `Push: ${result.data?.pushStatus ?? "n/a"}`);
       }
       router.refresh();
     });
@@ -53,7 +53,7 @@ export default function OrderActions({ orderId, status, couriers }: OrderActions
     return (
       <div className="flex flex-col gap-2">
         <span className="text-xs text-yellow-600">
-          Aguardando motoboy aceitar...
+          Aguardando entregador aceitar...
         </span>
         <div className="flex gap-2">
           <select
@@ -80,7 +80,7 @@ export default function OrderActions({ orderId, status, couriers }: OrderActions
                 if (!result.ok) {
                   setError(result.error?.message ?? "Erro");
                 } else {
-                  setPushMsg(result.data?.pushStatus === "notificacao-enviada" ? "Novo motoboy notificado!" : `Push: ${result.data?.pushStatus ?? "n/a"}`);
+                  setPushMsg(result.data?.pushStatus === "notificacao-enviada" ? "Novo entregador notificado!" : `Push: ${result.data?.pushStatus ?? "n/a"}`);
                 }
                 router.refresh();
               });
@@ -126,7 +126,7 @@ export default function OrderActions({ orderId, status, couriers }: OrderActions
               onChange={(e) => setSelectedCourier(e.target.value)}
               className="rounded border border-gray-300 px-2 py-1 text-xs"
             >
-              <option value="">Escolher motoboy</option>
+              <option value="">Escolher entregador</option>
               {couriers
                 .filter((c) => c.status === "available")
                 .map((c) => (

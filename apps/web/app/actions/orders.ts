@@ -153,8 +153,8 @@ export async function createOrder(
 }
 
 /**
- * Atribui um motoboy ao pedido e muda status para pending_courier.
- * Fluxo correto: draft → atribui motoboy → pending_courier → motoboy aceita → accepted
+ * Atribui um entregador ao pedido e muda status para pending_courier.
+ * Fluxo correto: draft → atribui entregador → pending_courier → entregador aceita → accepted
  */
 export async function assignCourierToOrder(
   orderId: string,
@@ -185,7 +185,7 @@ export async function assignCourierToOrder(
     return err(error.message, "order/assign-failed");
   }
 
-  // Notifica o motoboy
+  // Notifica o entregador
   const pushResult = await sendPushNotification(
     courierId,
     "Novo pedido disponivel!",
@@ -198,7 +198,7 @@ export async function assignCourierToOrder(
 }
 
 /**
- * Motoboy aceita o pedido (usado no app mobile).
+ * Entregador aceita o pedido (usado no app mobile).
  */
 export async function acceptOrder(orderId: string): Promise<Result<void>> {
   const validation = validate(orderIdSchema, { orderId });
@@ -255,7 +255,7 @@ export async function cancelOrder(orderId: string): Promise<Result<void>> {
 }
 
 /**
- * Reatribui um motoboy a um pedido ja atribuido.
+ * Reatribui um entregador a um pedido ja atribuido.
  */
 export async function reassignCourierToOrder(
   orderId: string,

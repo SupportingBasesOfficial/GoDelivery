@@ -20,7 +20,7 @@ export default function CouriersPage() {
       if (result.ok) {
         setCouriers(result.data);
       } else {
-        setError(result.error?.message ?? "Erro ao carregar motoboys");
+        setError(result.error?.message ?? "Erro ao carregar entregadores");
       }
       setLoading(false);
     }
@@ -32,13 +32,10 @@ export default function CouriersPage() {
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "couriers" },
         async (payload) => {
-          console.warn("[Couriers Realtime] UPDATE payload:", payload);
           const raw = payload.new as Record<string, unknown>;
           const updatedId = raw.id as string;
-          const updatedStatus = raw.status as string;
 
-          if (!updatedId || !updatedStatus) {
-            console.warn("[Couriers Realtime] Payload incompleto, re-fetching...");
+          if (!updatedId) {
             const result = await listCouriers();
             if (result.ok) setCouriers(result.data);
             return;
@@ -47,7 +44,34 @@ export default function CouriersPage() {
           setCouriers((prev) =>
             prev.map((c) =>
               c.id === updatedId
-                ? { ...c, status: updatedStatus }
+                ? {
+                    ...c,
+                    status: (raw.status as string) ?? c.status,
+                    licenseNumber: (raw.license_number as string) ?? c.licenseNumber,
+                    vehiclePlate: (raw.vehicle_plate as string) ?? c.vehiclePlate,
+                    vehicleType: (raw.vehicle_type as string) ?? c.vehicleType,
+                  }
+                : c
+            )
+          );
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "profiles" },
+        (payload) => {
+          const raw = payload.new as Record<string, unknown>;
+          const updatedId = raw.id as string;
+          if (!updatedId) return;
+
+          setCouriers((prev) =>
+            prev.map((c) =>
+              c.id === updatedId
+                ? {
+                    ...c,
+                    fullName: (raw.full_name as string) ?? c.fullName,
+                    phone: (raw.phone as string) ?? c.phone,
+                  }
                 : c
             )
           );
@@ -57,7 +81,6 @@ export default function CouriersPage() {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "couriers" },
         async () => {
-          console.warn("[Couriers Realtime] INSERT detectado, re-fetching...");
           const result = await listCouriers();
           if (result.ok) setCouriers(result.data);
         }

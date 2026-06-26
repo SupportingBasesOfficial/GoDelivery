@@ -19,7 +19,7 @@ export async function sendPushNotification(
 ): Promise<Result<void>> {
   const validation = validate(uuidSchema, courierId);
   if (!validation.success) {
-    return err("ID do motoboy inválido", "validation/invalid-input");
+    return err("ID do entregador inválido", "validation/invalid-input");
   }
 
   const admin = createAdminClient();

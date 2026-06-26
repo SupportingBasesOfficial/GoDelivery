@@ -32,7 +32,7 @@ export default function LandingPage() {
           <span className="text-blue-600">com inteligência</span>
         </h2>
         <p className="mx-auto mt-6 max-w-2xl text-lg text-gray-600">
-          Plataforma completa para empresários gerenciarem motoboys,
+          Plataforma completa para empresários gerenciarem entregadores,
           rotas e entregas em tempo real. Pague apenas pelo que usar.
         </p>
         <div className="mt-10 flex justify-center gap-4">
@@ -59,7 +59,7 @@ export default function LandingPage() {
         <div className="mt-12 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
           <FeatureCard
             title="Rastreamento em tempo real"
-            description="Acompanhe a posição dos seus motoboys no mapa com atualizações ao vivo."
+            description="Acompanhe a posição dos seus entregadores no mapa com atualizações ao vivo."
             icon="📍"
           />
           <FeatureCard
@@ -74,7 +74,7 @@ export default function LandingPage() {
           />
           <FeatureCard
             title="Notificações push"
-            description="Mantenha motoboys e clientes informados sobre cada etapa da entrega."
+            description="Mantenha entregadores e clientes informados sobre cada etapa da entrega."
             icon="🔔"
           />
           <FeatureCard
@@ -104,13 +104,13 @@ export default function LandingPage() {
             />
             <Step
               number="2"
-              title="Cadastre motoboys"
+              title="Cadastre entregadores"
               description="Adicione seus entregadores e eles recebem o app no celular."
             />
             <Step
               number="3"
               title="Crie pedidos"
-              description="Cadastre entregas, atribua a motoboys e acompanhe tudo em tempo real."
+              description="Cadastre entregas, atribua a entregadores e acompanhe tudo em tempo real."
             />
           </div>
         </div>

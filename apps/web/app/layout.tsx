@@ -3,7 +3,7 @@ import "leaflet/dist/leaflet.css";
 
 export const metadata = {
   title: "GoDelivery — Painel do Empresário",
-  description: "Plataforma multi-tenant de gestão de motoboys e entregas",
+  description: "Plataforma multi-tenant de gestão de entregadores e entregas",
   icons: {
     icon: "/favicon.svg",
   },

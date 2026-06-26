@@ -79,7 +79,7 @@ export default function MapPage() {
   useEffect(() => {
     load();
 
-    // Realtime: atualiza posicoes dos couriers automaticamente
+    // Realtime: atualiza posicoes e dados dos couriers automaticamente
     const channel = supabase
       .channel("courier_locations")
       .on(
@@ -87,7 +87,6 @@ export default function MapPage() {
         { event: "UPDATE", schema: "public", table: "couriers" },
         (payload) => {
           const raw = payload.new as Record<string, unknown>;
-          console.log("[Realtime] raw payload:", raw);
           const updated: Partial<CourierWithLocation> = {
             id: raw.id as string,
             status: raw.status as string,
@@ -97,9 +96,29 @@ export default function MapPage() {
             vehicleType: raw.vehicle_type as string | null,
             vehiclePlate: raw.vehicle_plate as string | null,
           };
-          console.log("[Realtime] mapped:", updated);
           setCouriers((prev) =>
             prev.map((c) => (c.id === updated.id ? { ...c, ...updated } : c))
+          );
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "profiles" },
+        (payload) => {
+          const raw = payload.new as Record<string, unknown>;
+          const updatedId = raw.id as string;
+          if (!updatedId) return;
+
+          setCouriers((prev) =>
+            prev.map((c) =>
+              c.id === updatedId
+                ? {
+                    ...c,
+                    fullName: (raw.full_name as string) ?? c.fullName,
+                    phone: (raw.phone as string) ?? c.phone,
+                  }
+                : c
+            )
           );
         }
       )

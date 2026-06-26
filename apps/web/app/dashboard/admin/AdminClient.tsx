@@ -33,7 +33,7 @@ type TabKey = (typeof tabs)[number]["key"];
 
 const statusLabels: Record<string, string> = {
   draft: "Rascunho",
-  pending_courier: "Aguardando motoboy",
+  pending_courier: "Aguardando entregador",
   accepted: "Aceito",
   collected: "Coletado",
   in_transit: "Em rota",

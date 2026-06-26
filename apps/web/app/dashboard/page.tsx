@@ -37,7 +37,7 @@ export default async function DashboardPage() {
           </h2>
           <p className="mt-1 text-gray-600">
             Bem-vindo, {user.fullName ?? user.email}. Aqui você gerencia suas
-            entregas e motoboys.
+            entregas e entregadores.
           </p>
         </div>
 
@@ -81,7 +81,7 @@ export default async function DashboardPage() {
             href="/dashboard/couriers"
             className="rounded-xl bg-white p-6 shadow transition hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
           >
-            <h3 className="font-semibold text-gray-900">Motoboys</h3>
+            <h3 className="font-semibold text-gray-900">Entregadores</h3>
             <p className="mt-2 text-3xl font-bold text-orange-600">
               Gerenciar
             </p>
