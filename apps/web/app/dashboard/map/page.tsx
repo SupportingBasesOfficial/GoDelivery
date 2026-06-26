@@ -170,7 +170,7 @@ export default function MapPage() {
                 {couriers.map((courier) => (
                   <div
                     key={courier.id}
-                    className="rounded-lg border p-3 text-sm"
+                    className={`rounded-lg border p-3 text-sm ${courier.lat && courier.lng ? "cursor-pointer hover:bg-blue-50 hover:border-blue-200 transition-colors" : ""}`}
                   >
                     <div className="flex items-center gap-2">
                       <span
@@ -198,7 +198,11 @@ export default function MapPage() {
                         </button>
                       </div>
                     ) : (
-                      <p className="mt-1 text-xs text-gray-400">Sem localização</p>
+                      <p className="mt-1 text-xs text-orange-500">
+                        {courier.status === "offline"
+                          ? "Offline — sem localização"
+                          : "GPS inativo — aguardando pedido"}
+                      </p>
                     )}
                   </div>
                 ))}
