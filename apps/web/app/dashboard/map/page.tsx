@@ -86,6 +86,7 @@ export default function MapPage() {
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "couriers" },
         (payload) => {
+          console.log("[Map Realtime] Evento UPDATE couriers:", payload.new);
           const raw = payload.new as Record<string, unknown>;
           const updated: Partial<CourierWithLocation> = {
             id: raw.id as string,
@@ -105,6 +106,7 @@ export default function MapPage() {
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "profiles" },
         (payload) => {
+          console.log("[Map Realtime] Evento UPDATE profiles:", payload.new);
           const raw = payload.new as Record<string, unknown>;
           const updatedId = raw.id as string;
           if (!updatedId) return;
@@ -123,11 +125,19 @@ export default function MapPage() {
         }
       )
       .subscribe((status) => {
+        console.log("[Map Realtime] Status canal:", status);
         setConnectionStatus(status === "SUBSCRIBED" ? "conectado" : status);
       });
 
+    // Fallback: recarrega dados a cada 15s caso o realtime falhe
+    const pollInterval = setInterval(() => {
+      console.log("[Map Poll] Recarregando dados do mapa...");
+      load();
+    }, 15000);
+
     return () => {
       supabase.removeChannel(channel);
+      clearInterval(pollInterval);
     };
   }, []);
 
