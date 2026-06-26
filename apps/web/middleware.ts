@@ -15,7 +15,7 @@ export async function middleware(request: NextRequest) {
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob: https:",
     "font-src 'self'",
-    "connect-src 'self' https://*.supabase.co https://*.sentry.io",
+    "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.sentry.io",
     "frame-ancestors 'none'",
     "form-action 'self'",
     "base-uri 'self'",
