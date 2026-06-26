@@ -4,8 +4,10 @@ import { useState, useEffect } from "react";
 import {
   getTenantSettings,
   updateTenantSettings,
+  getTenantLocation,
+  updateTenantLocation,
 } from "../../actions/settings";
-import type { FeeRange } from "../../actions/settings";
+import type { FeeRange, TenantLocationData } from "../../actions/settings";
 
 interface FeeRangeInput {
   minKm: string;
@@ -31,6 +33,11 @@ function toRange(r: FeeRangeInput): FeeRange {
 
 export default function SettingsPage() {
   const [feeRanges, setFeeRanges] = useState<FeeRangeInput[]>([]);
+  const [tenantLocation, setTenantLocation] = useState<TenantLocationData>({
+    address: "",
+    latitude: null,
+    longitude: null,
+  });
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -39,11 +46,17 @@ export default function SettingsPage() {
   useEffect(() => {
     async function load() {
       setLoading(true);
-      const result = await getTenantSettings();
-      if (result.ok) {
-        setFeeRanges(result.data.feeRanges.map(toInput));
+      const [settingsResult, locationResult] = await Promise.all([
+        getTenantSettings(),
+        getTenantLocation(),
+      ]);
+      if (settingsResult.ok) {
+        setFeeRanges(settingsResult.data.feeRanges.map(toInput));
       } else {
-        setError(result.error?.message ?? "Erro ao carregar configurações");
+        setError(settingsResult.error?.message ?? "Erro ao carregar configurações");
+      }
+      if (locationResult.ok) {
+        setTenantLocation(locationResult.data);
       }
       setLoading(false);
     }
@@ -73,6 +86,29 @@ export default function SettingsPage() {
 
     if (!result.ok) {
       setError(result.error?.message ?? "Erro ao salvar");
+    } else {
+      setSuccess(true);
+    }
+
+    setSaving(false);
+  }
+
+  async function handleSaveLocation() {
+    setSaving(true);
+    setError(null);
+    setSuccess(false);
+
+    const lat = tenantLocation.latitude;
+    const lng = tenantLocation.longitude;
+
+    const result = await updateTenantLocation({
+      address: tenantLocation.address,
+      latitude: lat !== null && !isNaN(lat) ? lat : null,
+      longitude: lng !== null && !isNaN(lng) ? lng : null,
+    });
+
+    if (!result.ok) {
+      setError(result.error?.message ?? "Erro ao salvar localização");
     } else {
       setSuccess(true);
     }
@@ -182,6 +218,82 @@ export default function SettingsPage() {
           </button>
         </div>
       )}
+
+      <h2 className="mb-6 mt-8 text-2xl font-bold text-gray-900">
+        Localização do estabelecimento
+      </h2>
+
+      <div className="space-y-4 rounded-xl bg-white p-6 shadow">
+        <p className="text-sm text-gray-600">
+          Defina o endereço e coordenadas do seu estabelecimento para centralizar o mapa automaticamente.
+        </p>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700">
+            Endereço
+          </label>
+          <input
+            type="text"
+            value={tenantLocation.address}
+            onChange={(e) =>
+              setTenantLocation((prev) => ({
+                ...prev,
+                address: e.target.value,
+              }))
+            }
+            placeholder="Rua Exemplo, 123 - Bairro, Cidade/UF"
+            className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+          />
+        </div>
+
+        <div className="flex gap-3">
+          <div className="flex-1">
+            <label className="block text-sm font-medium text-gray-700">
+              Latitude
+            </label>
+            <input
+              type="text"
+              inputMode="decimal"
+              value={tenantLocation.latitude ?? ""}
+              onChange={(e) =>
+                setTenantLocation((prev) => ({
+                  ...prev,
+                  latitude: e.target.value === "" ? null : parseFloat(e.target.value),
+                }))
+              }
+              placeholder="-23.5505"
+              className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+            />
+          </div>
+          <div className="flex-1">
+            <label className="block text-sm font-medium text-gray-700">
+              Longitude
+            </label>
+            <input
+              type="text"
+              inputMode="decimal"
+              value={tenantLocation.longitude ?? ""}
+              onChange={(e) =>
+                setTenantLocation((prev) => ({
+                  ...prev,
+                  longitude: e.target.value === "" ? null : parseFloat(e.target.value),
+                }))
+              }
+              placeholder="-46.6333"
+              className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+            />
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={handleSaveLocation}
+          disabled={saving}
+          className="rounded-lg bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+        >
+          {saving ? "Salvando..." : "Salvar localização"}
+        </button>
+      </div>
     </div>
   );
 }

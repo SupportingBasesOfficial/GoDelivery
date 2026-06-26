@@ -95,3 +95,94 @@ export async function updateTenantSettings(
 
   return ok(undefined);
 }
+
+export interface TenantLocationData {
+  address: string;
+  latitude: number | null;
+  longitude: number | null;
+}
+
+/**
+ * Busca localizacao do estabelecimento (tenant).
+ */
+export async function getTenantLocation(): Promise<Result<TenantLocationData>> {
+  const supabase = await createServerClient();
+
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    return err("Não autenticado", "auth/unauthenticated");
+  }
+
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("tenant_id")
+    .eq("id", user.id)
+    .single();
+
+  if (profileError || !profile?.tenant_id) {
+    return err("Perfil não encontrado", "profile/not-found");
+  }
+
+  const { data: tenant, error: tenantError } = await supabase
+    .from("tenants")
+    .select("address, latitude, longitude")
+    .eq("id", profile.tenant_id)
+    .single();
+
+  if (tenantError) {
+    return err(tenantError.message, "tenant/fetch-failed");
+  }
+
+  return ok({
+    address: tenant?.address ?? "",
+    latitude: tenant?.latitude ?? null,
+    longitude: tenant?.longitude ?? null,
+  });
+}
+
+/**
+ * Atualiza localizacao do estabelecimento (tenant).
+ */
+export async function updateTenantLocation(
+  data: TenantLocationData,
+): Promise<Result<void>> {
+  const supabase = await createServerClient();
+
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    return err("Não autenticado", "auth/unauthenticated");
+  }
+
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("tenant_id")
+    .eq("id", user.id)
+    .single();
+
+  if (profileError || !profile?.tenant_id) {
+    return err("Perfil não encontrado", "profile/not-found");
+  }
+
+  const { error } = await supabase
+    .from("tenants")
+    .update({
+      address: data.address,
+      latitude: data.latitude,
+      longitude: data.longitude,
+    })
+    .eq("id", profile.tenant_id);
+
+  if (error) {
+    return err(error.message, "tenant/update-failed");
+  }
+
+  return ok(undefined);
+}
