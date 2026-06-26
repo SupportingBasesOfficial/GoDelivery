@@ -72,8 +72,8 @@ export default function MapPage() {
   const [error, setError] = useState<string | null>(null);
   const [connectionStatus, setConnectionStatus] = useState("conectando...");
 
-  async function load() {
-    setLoading(true);
+  async function load(showLoading = true) {
+    if (showLoading) setLoading(true);
     const [couriersResult, tenantResult] = await Promise.all([
       getCouriersWithLocation(),
       getTenantLocation(),
@@ -93,7 +93,7 @@ export default function MapPage() {
         prev ? prev + " | " + (tenantResult.error?.message ?? "Erro ao carregar localização") : tenantResult.error?.message ?? "Erro ao carregar localização"
       );
     }
-    setLoading(false);
+    if (showLoading) setLoading(false);
   }
 
   useEffect(() => {
@@ -149,10 +149,10 @@ export default function MapPage() {
         setConnectionStatus(status === "SUBSCRIBED" ? "conectado" : status);
       });
 
-    // Fallback: recarrega dados a cada 15s caso o realtime falhe
+    // Fallback: recarrega dados a cada 15s caso o realtime falhe (silencioso, sem piscar)
     const pollInterval = setInterval(() => {
       console.log("[Map Poll] Recarregando dados do mapa...");
-      load();
+      load(false);
     }, 15000);
 
     return () => {
