@@ -86,7 +86,18 @@ export default function MapPage() {
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "couriers" },
         (payload) => {
-          const updated = payload.new as CourierWithLocation;
+          const raw = payload.new as Record<string, unknown>;
+          console.log("[Realtime] raw payload:", raw);
+          const updated: Partial<CourierWithLocation> = {
+            id: raw.id as string,
+            status: raw.status as string,
+            lat: raw.current_location_lat as number | null,
+            lng: raw.current_location_lng as number | null,
+            lastLocationAt: raw.last_location_at as string | null,
+            vehicleType: raw.vehicle_type as string | null,
+            vehiclePlate: raw.vehicle_plate as string | null,
+          };
+          console.log("[Realtime] mapped:", updated);
           setCouriers((prev) =>
             prev.map((c) => (c.id === updated.id ? { ...c, ...updated } : c))
           );
