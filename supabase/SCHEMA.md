@@ -21,7 +21,8 @@ CREATE TYPE order_status AS ENUM (
   'collected',       -- Empresário confirmou coleta
   'in_transit',      -- Em rota de entrega
   'delivered',       -- Entregue ao cliente
-  'rejected'         -- Motoboy recusou (com reason)
+  'rejected',        -- Motoboy recusou (com reason)
+  'cancelled'        -- Empresário ou admin cancelou
 );
 ```
 
@@ -306,7 +307,18 @@ Pedidos de entrega. Soft delete via `deleted_at`.
 | `delivery_fee`          | DECIMAL(10,2) | NOT NULL, DEFAULT 0                           | Taxa de entrega (R$)           |
 | `platform_fee`          | DECIMAL(10,2) | NOT NULL, DEFAULT 0                           | Taxa da plataforma (R$)        |
 | `rejection_reason`      | TEXT          |                                               | Motivo da recusa               |
+| `courier_notified_at`   | TIMESTAMPTZ   |                                               | Quando courier foi notificado  |
+| `assigned_at`           | TIMESTAMPTZ   |                                               | Quando courier foi atribuído   |
+| `accepted_at`           | TIMESTAMPTZ   |                                               | Quando courier aceitou         |
+| `collected_at`          | TIMESTAMPTZ   |                                               | Quando foi coletado            |
+| `in_transit_at`         | TIMESTAMPTZ   |                                               | Quando entrou em rota          |
 | `delivered_at`          | TIMESTAMPTZ   |                                               | Quando foi entregue            |
+| `cancelled_at`          | TIMESTAMPTZ   |                                               | Quando foi cancelado           |
+| `rejected_at`           | TIMESTAMPTZ   |                                               | Quando foi recusado            |
+| `proof_image_url`       | TEXT          |                                               | URL do comprovante de entrega  |
+| `proof_uploaded_at`     | TIMESTAMPTZ   |                                               | Quando comprovante foi enviado |
+| `operated_by`           | UUID          | FK → auth.users(id)                           | Último operador que agiu       |
+| `route_id`              | UUID          | FK → delivery_routes(id), ON DELETE SET NULL  | Rota de entrega vinculada      |
 | `deleted_at`            | TIMESTAMPTZ   |                                               | Soft delete                    |
 | `created_at`            | TIMESTAMPTZ   | NOT NULL, DEFAULT now()                       |                                |
 | `updated_at`            | TIMESTAMPTZ   | NOT NULL, DEFAULT now()                       |                                |
@@ -335,9 +347,9 @@ WITH CHECK (courier_id = auth.uid());
 
 ---
 
-### `order_status_history`
+### `order_status_history` (LEGADO — mantido para compatibilidade)
 
-Audit trail imutável.
+Audit trail imutável. Populado pelo trigger `audit_order_status()` (desativado).
 
 | Coluna       | Tipo         | Constraints                                  | Descrição                      |
 | ------------ | ------------ | -------------------------------------------- | ------------------------------ |
@@ -348,35 +360,79 @@ Audit trail imutável.
 | `created_by` | UUID         | FK → profiles(id)                              | Quem mudou o status            |
 | `created_at` | TIMESTAMPTZ  | NOT NULL, DEFAULT now()                      |                                |
 
+**RLS:** (mantido para leitura legada)
+
+---
+
+### `order_events`
+
+Auditoria ponta a ponta rica (substitui `order_status_history`).
+
+| Coluna       | Tipo              | Constraints                                    | Descrição                      |
+| ------------ | ----------------- | ---------------------------------------------- | ------------------------------ |
+| `id`         | UUID              | PK, DEFAULT gen_random_uuid()                  |                                |
+| `order_id`   | UUID              | NOT NULL, FK → orders(id), ON DELETE CASCADE   |                                |
+| `event_type` | order_event_type  | NOT NULL                                       | Tipo do evento                 |
+| `actor_id`   | UUID              | FK → auth.users(id), ON DELETE SET NULL        | Quem executou a ação           |
+| `actor_role` | TEXT              | NOT NULL, DEFAULT 'system'                     | 'business_owner', 'courier', etc |
+| `courier_id` | UUID              | FK → couriers(id), ON DELETE SET NULL         | Courier vinculado ao evento    |
+| `route_id`   | UUID              |                                                | Rota vinculada                 |
+| `latitude`   | DECIMAL(10,8)     |                                                | Localização GPS (se aplicável) |
+| `longitude`  | DECIMAL(11,8)   |                                                | Localização GPS (se aplicável) |
+| `metadata`   | JSONB             | DEFAULT '{}'                                   | Dados extras flexíveis         |
+| `notes`      | TEXT              |                                                | Observações                    |
+| `created_at` | TIMESTAMPTZ       | NOT NULL, DEFAULT now()                        |                                |
+
+**Enum `order_event_type`:**
+```sql
+CREATE TYPE order_event_type AS ENUM (
+  'created', 'assigned', 'reassigned', 'accepted', 'rejected',
+  'cancelled', 'collected', 'in_transit', 'delivered',
+  'courier_notified', 'route_started', 'route_ended', 'location_updated'
+);
+```
+
 **RLS:**
 ```sql
--- Business owner: lê histórico de pedidos do tenant
-CREATE POLICY "Business owner read tenant history"
-ON order_status_history FOR SELECT
-USING (EXISTS (
-  SELECT 1 FROM orders o
-  WHERE o.id = order_status_history.order_id
-  AND o.tenant_id = (SELECT tenant_id FROM profiles WHERE id = auth.uid())
-  AND o.deleted_at IS NULL
-));
-
--- Courier: lê histórico de pedidos atribuídos
-CREATE POLICY "Courier read assigned history"
-ON order_status_history FOR SELECT
-USING (EXISTS (
-  SELECT 1 FROM orders o
-  WHERE o.id = order_status_history.order_id
-  AND o.courier_id = auth.uid()
-  AND o.deleted_at IS NULL
-));
-
--- Admin: read all
-CREATE POLICY "Admin read all history"
-ON order_status_history FOR SELECT
-USING (EXISTS (
-  SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'
-));
+CREATE POLICY "order_events_select_tenant"
+  ON order_events FOR SELECT
+  TO authenticated
+  USING (
+    order_id IN (
+      SELECT o.id FROM orders o
+      JOIN couriers c ON c.id = o.courier_id OR EXISTS (
+        SELECT 1 FROM profiles p WHERE p.id = auth.uid() AND p.tenant_id = c.tenant_id
+      )
+      WHERE o.created_by = auth.uid()
+        OR EXISTS (
+          SELECT 1 FROM profiles p
+          WHERE p.id = auth.uid()
+            AND p.tenant_id = (
+              SELECT tenant_id FROM profiles WHERE id = o.created_by
+            )
+        )
+    )
+  );
 ```
+
+---
+
+### `delivery_routes`
+
+Rotas de entrega (um courier pode ter múltiplas rotas, cada rota múltiplos pedidos).
+
+| Coluna                  | Tipo           | Constraints                                   | Descrição                      |
+| ----------------------- | -------------- | --------------------------------------------- | ------------------------------ |
+| `id`                    | UUID           | PK, DEFAULT gen_random_uuid()                 |                                |
+| `courier_id`            | UUID           | NOT NULL, FK → couriers(id), ON DELETE CASCADE|                                |
+| `tenant_id`             | UUID           | NOT NULL, FK → tenants(id), ON DELETE CASCADE |                                |
+| `status`                | TEXT           | NOT NULL, DEFAULT 'active'                    | 'active', 'paused', 'completed'|
+| `started_at`            | TIMESTAMPTZ    |                                               |                                |
+| `ended_at`              | TIMESTAMPTZ    |                                               |                                |
+| `total_distance_km`     | DECIMAL(10,2)   |                                               |                                |
+| `estimated_duration_min`| INTEGER        |                                               |                                |
+| `created_at`            | TIMESTAMPTZ    | NOT NULL, DEFAULT now()                       |                                |
+| `updated_at`            | TIMESTAMPTZ    | NOT NULL, DEFAULT now()                       |                                |
 
 ---
 
@@ -485,8 +541,11 @@ Atualiza `updated_at` em todas as tabelas.
 ### `calculate_platform_fee()`
 Disparado BEFORE UPDATE em `orders`. Quando status muda para `delivered`, calcula `platform_fee` com base em `platform_settings`.
 
-### `audit_order_status()`
-Disparado AFTER UPDATE em `orders`. Insere `order_status_history` com `created_by = auth.uid()`.
+### `set_order_status_timestamp()`
+Disparado BEFORE UPDATE em `orders`. Preenche `accepted_at`, `collected_at`, `in_transit_at`, `rejected_at` conforme o status muda.
+
+### `audit_order_events()`
+Disparado AFTER UPDATE em `orders`. Insere `order_events` com dados ricos (actor_id, actor_role, metadata, notes).
 
 ### `sync_courier_location()`
 Disparado AFTER INSERT em `courier_locations`. Atualiza `couriers.current_location_lat`, `current_location_lng`, `last_location_at`.
@@ -506,8 +565,19 @@ CREATE INDEX idx_orders_courier ON orders(courier_id) WHERE deleted_at IS NULL;
 CREATE INDEX idx_orders_status ON orders(status) WHERE deleted_at IS NULL;
 CREATE INDEX idx_orders_created ON orders(created_at DESC) WHERE deleted_at IS NULL;
 
--- History
+-- History (legado)
 CREATE INDEX idx_order_history_order_id ON order_status_history(order_id, created_at DESC);
+
+-- Order Events
+CREATE INDEX idx_order_events_order_id ON order_events(order_id);
+CREATE INDEX idx_order_events_event_type ON order_events(event_type);
+CREATE INDEX idx_order_events_courier_id ON order_events(courier_id);
+CREATE INDEX idx_order_events_created_at ON order_events(created_at);
+
+-- Delivery Routes
+CREATE INDEX idx_delivery_routes_courier_id ON delivery_routes(courier_id);
+CREATE INDEX idx_delivery_routes_tenant_id ON delivery_routes(tenant_id);
+CREATE INDEX idx_delivery_routes_status ON delivery_routes(status);
 
 -- Locations
 CREATE INDEX idx_courier_locations_courier_recorded ON courier_locations(courier_id, recorded_at DESC);
@@ -541,7 +611,14 @@ CREATE INDEX idx_couriers_tenant_status ON couriers(tenant_id, status) WHERE sta
 - [x] TODOS os enums definidos e documentados
 - [x] TODAS as colunas tipadas corretamente com constraints
 - [x] TODAS as FKs com ON DELETE CASCADE/SET NULL apropriado
-- [x] Triggers documentados: update_timestamp, calculate_platform_fee, audit_order_status, sync_courier_location, update_courier_stats
+- [x] Triggers documentados: update_timestamp, calculate_platform_fee, set_order_status_timestamp, audit_order_events, sync_courier_location, update_courier_stats
+- [x] Tabela `order_events` documentada (substitui order_status_history)
+- [x] Tabela `delivery_routes` documentada
+- [x] Enum `order_event_type` documentado
+- [x] Enum `cancelled` adicionado ao `order_status`
+- [x] Colunas de proof (`proof_image_url`, `proof_uploaded_at`) documentadas
+- [x] Colunas de timestamps detalhados (`assigned_at`, `accepted_at`, `collected_at`, `in_transit_at`, `cancelled_at`, `rejected_at`) documentadas
+- [x] Colunas `operated_by` e `route_id` documentadas
 - [x] Índices de performance com partial indexes (WHERE deleted_at IS NULL)
 - [x] Seed data definido
 - [x] Nomenclatura consistente (inglês snake_case)

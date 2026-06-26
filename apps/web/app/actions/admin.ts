@@ -173,17 +173,21 @@ export async function getAllPayments(): Promise<Result<AdminPayment[]>> {
   return ok(formatted);
 }
 
-// ─── Audit / Order Status History ────────────────────────────────────
+// ─── Audit / Order Events (auditoria ponta a ponta) ───────────────────
 
-export interface StatusHistoryEntry {
+export interface OrderEventEntry {
   id: string;
   order_id: string;
-  status: string;
+  event_type: string;
+  actor_id: string | null;
+  actor_role: string;
+  courier_id: string | null;
+  metadata: unknown;
   notes: string | null;
   created_at: string;
 }
 
-export async function getOrderStatusHistory(orderId?: string): Promise<Result<StatusHistoryEntry[]>> {
+export async function getOrderEvents(orderId?: string): Promise<Result<OrderEventEntry[]>> {
   if (orderId) {
     const validation = validate(uuidSchema, orderId);
     if (!validation.success) {
@@ -193,8 +197,8 @@ export async function getOrderStatusHistory(orderId?: string): Promise<Result<St
 
   const admin = createAdminClient();
   let query = admin
-    .from("order_status_history")
-    .select("id, order_id, status, notes, created_at")
+    .from("order_events")
+    .select("id, order_id, event_type, actor_id, actor_role, courier_id, metadata, notes, created_at")
     .order("created_at", { ascending: false })
     .limit(100);
 
@@ -205,7 +209,7 @@ export async function getOrderStatusHistory(orderId?: string): Promise<Result<St
   const { data, error } = await query;
 
   if (error) {
-    return err(error.message, "history/fetch-failed");
+    return err(error.message, "events/fetch-failed");
   }
 
   return ok(data ?? []);
