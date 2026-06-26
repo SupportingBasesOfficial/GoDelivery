@@ -24,8 +24,6 @@ function getCourierIcon(vehicleType: string | null, isOffline: boolean) {
   const anchor: [number, number] = isOffline ? [12, 24] : [16, 32];
   const popupAnchor: [number, number] = isOffline ? [0, -24] : [0, -32];
 
-  const colorSuffix = isOffline ? "-gray" : "";
-
   switch (vehicleType?.toLowerCase()) {
     case "bike":
       return new Icon({
