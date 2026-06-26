@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { getCourier, updateCourier } from "../../../../actions/couriers";
 import type { CourierData } from "../../../../actions/couriers";
 
-export default function EditCourierPage({ params }: { params: { id: string } }) {
+export default function EditCourierPage() {
   const router = useRouter();
-  const courierId = params.id;
+  const params = useParams();
+  const courierId = params.id as string;
 
   const [courier, setCourier] = useState<CourierData | null>(null);
   const [loading, setLoading] = useState(true);
