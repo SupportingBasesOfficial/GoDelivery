@@ -1,4 +1,3 @@
-import { serve } from "https://deno.land"
 import { createClient } from "https://esm.sh"
 
 const corsHeaders = {
@@ -6,7 +5,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-serve(async (req) => {
+// O Supabase já injeta nativamente o Deno.serve no ambiente de execução global
+Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
@@ -62,7 +62,7 @@ serve(async (req) => {
       )
     }
 
-    const targetCourier = closestCouriers[0]
+    const targetCourier = closestCouriers
 
     const { error: updateError } = await supabaseClient
       .from('orders')
