@@ -40,7 +40,7 @@ serve(async (req) => {
       .single()
 
     if (orderError || !order) {
-      throw new Error(Order not found: ${orderError?.message})
+    throw new Error("Order not found: " + (orderError?.message || "Unknown error"));
     }
 
     // Garante que só vamos procurar motoboy se o pedido realmente precisar de um
